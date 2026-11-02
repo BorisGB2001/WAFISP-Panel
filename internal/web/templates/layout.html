@@ -76,7 +76,7 @@
 {{else}}<p class="muted">{{t "No data"}}</p>{{end}}
 {{end}}
 
-{{define "periods"}}<label>{{t "Period"}}<select name="period">{{range .Periods}}<option value="{{.Key}}" {{if eq .Key $.F.Period}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>{{end}}
+{{define "periods"}}<input type="hidden" name="pin" value="1"><label>{{t "Period"}}<select name="period">{{range .Periods}}<option value="{{.Key}}" {{if eq .Key $.F.Period}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>{{end}}
 
 {{/* blockform: . is a map with IP, Site, Back, Backends, Default, TTLs, CSRF */}}
 {{define "blockform"}}

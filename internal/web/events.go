@@ -37,7 +37,7 @@ func (s *Server) siteNames() []string {
 // ---------- overview ----------
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
-	f := parseFilter(r, "24h")
+	f := viewFilter(w, r, "24h")
 	now := time.Now()
 	a := aggregate(s.Store, f, now, s.allowed)
 	cats := a.Cats.top(20)
@@ -101,7 +101,7 @@ func (s *Server) logView(r *http.Request, f filter) func(*store.Summary) bool {
 }
 
 func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
-	f := parseFilter(r, "24h")
+	f := viewFilter(w, r, "24h")
 	show := s.logView(r, f)
 	var rows []store.Summary
 	total := 0
@@ -137,7 +137,7 @@ func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 const csvMax = 50000
 
 func (s *Server) attacksCSV(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
-	f := parseFilter(r, "24h")
+	f := viewFilter(w, r, "24h")
 	show := s.logView(r, f)
 	var buf bytes.Buffer
 	buf.WriteString("\uFEFF") // Excel opens UTF-8 CSV correctly with a BOM
@@ -275,7 +275,7 @@ func (s *Server) markTraps(list []kv) []kv {
 // ---------- analysis ----------
 
 func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
-	f := parseFilter(r, "7d")
+	f := viewFilter(w, r, "7d")
 	minIPs, _ := strconv.Atoi(r.URL.Query().Get("min_ips"))
 	if minIPs <= 0 {
 		minIPs = 3

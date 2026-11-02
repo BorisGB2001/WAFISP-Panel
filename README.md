@@ -78,6 +78,8 @@ make linux                        # bin/wafisp-linux-amd64
 cp deploy/wafisp.example.yaml wafisp.yaml
 ```
 
+Or take `wafisp-linux-amd64` from the latest [release](https://github.com/BorisGB2001/WAFISP-Panel/releases) and put it in `bin/`; its `.sha256` file holds the checksum.
+
 Edit `wafisp.yaml`. At a minimum, set `web.listen` to internal addresses only (office network, VPN) and set `block.protected`. Then copy the project to the host and run, as root:
 
 ```bash

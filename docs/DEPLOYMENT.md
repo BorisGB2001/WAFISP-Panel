@@ -12,6 +12,8 @@ sh deploy/install.sh wafisp.yaml secrets   # first install, as root on the host
 sh deploy/install.sh                        # upgrade: binary and unit only
 ```
 
+`make release` tags the current commit `v<VERSION>` and publishes a GitHub release with the Linux binary and its checksum (needs `gh` and a clean, pushed tree).
+
 The installer checks the new binary with the new config (`-check`, read-only) before switching over and keeps the previous config as `wafisp.yaml.bak-<date>`. It never changes nginx's configuration.
 
 ## Step 1: read-only

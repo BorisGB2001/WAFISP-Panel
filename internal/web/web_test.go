@@ -801,3 +801,33 @@ func TestTrapDeleteUnbans(t *testing.T) {
 		t.Fatalf("today starts at %v", p)
 	}
 }
+
+func TestPeriodRemembered(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+	selected := func(path string) string {
+		_, b := get(t, ts, c, path)
+		return regexp.MustCompile(`option value="(\w+)" selected`).FindStringSubmatch(b)[1]
+	}
+	if p := selected("/"); p != "24h" {
+		t.Fatalf("default %s", p)
+	}
+	// Chosen in the selector: kept on every page with a selector.
+	if p := selected("/?pin=1&period=today"); p != "today" {
+		t.Fatal(p)
+	}
+	for _, path := range []string{"/", "/attacks", "/analysis"} {
+		if p := selected(path); p != "today" {
+			t.Fatalf("%s forgot the period: %s", path, p)
+		}
+	}
+	// A link with its own period shows it but does not replace the choice.
+	if p := selected("/attacks?path=/x&period=7d"); p != "7d" {
+		t.Fatal(p)
+	}
+	if p := selected("/"); p != "today" {
+		t.Fatalf("a link changed the remembered period: %s", p)
+	}
+}

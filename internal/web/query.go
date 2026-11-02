@@ -63,10 +63,33 @@ func parseFilter(r *http.Request, defPeriod string) filter {
 	f.Score, _ = strconv.Atoi(q.Get("score"))
 	f.Page, _ = strconv.Atoi(q.Get("page"))
 	f.Page = max(f.Page, 1)
-	if !slices.ContainsFunc(periods, func(p struct{ Key, Label string }) bool { return p.Key == f.Period }) {
+	if !validPeriod(f.Period) {
 		f.Period = defPeriod
 	}
 	return f
+}
+
+// viewFilter is parseFilter for the pages with a period selector: a
+// period chosen there (the form sends pin=1) is remembered in a cookie and
+// used whenever the address names none, until another one is chosen.
+// Links that carry their own period (e.g. "events on this path, 7 days")
+// show it without changing the remembered one.
+func viewFilter(w http.ResponseWriter, r *http.Request, defPeriod string) filter {
+	if r.URL.Query().Get("period") == "" {
+		if c, err := r.Cookie("wafisp_period"); err == nil && validPeriod(c.Value) {
+			defPeriod = c.Value
+		}
+	}
+	f := parseFilter(r, defPeriod)
+	if r.URL.Query().Get("pin") == "1" && validPeriod(r.URL.Query().Get("period")) {
+		http.SetCookie(w, &http.Cookie{Name: "wafisp_period", Value: f.Period, Path: "/", MaxAge: 365 * 24 * 3600,
+			HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode})
+	}
+	return f
+}
+
+func validPeriod(p string) bool {
+	return slices.ContainsFunc(periods, func(x struct{ Key, Label string }) bool { return x.Key == p })
 }
 
 func (f filter) since() time.Time { return periodStart(f.Period, time.Now()) }
