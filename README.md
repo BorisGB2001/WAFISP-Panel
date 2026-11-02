@@ -4,6 +4,19 @@ A panel for the WAF of an [ISPmanager](https://www.ispmanager.com/) host.
 
 ISPmanager's "WAF module for Nginx" is ModSecurity v3 with the OWASP Core Rule Set inside nginx (Apache, if any, is only the backend). ISPmanager turns it on per site and writes one audit log per site, but gives no overview, no search, no blocking and only a crude per-site rule list. WAFISP Panel is a single Go binary on the same host that reads those audit logs and fills the gap.
 
+![Overview](docs/screenshots/overview.png)
+
+## Screenshots
+
+The screenshots show made-up demo data: documentation addresses and `example.*` sites.
+
+| | |
+|---|---|
+| [![Attack log](docs/screenshots/attacks.png)](docs/screenshots/attacks.png)<br>**Attack log** with filters; blocked addresses in red | [![Event](docs/screenshots/event.png)](docs/screenshots/event.png)<br>**Event card**: matched rules, request, block / allow / ban everyone |
+| [![Analysis](docs/screenshots/analysis.png)](docs/screenshots/analysis.png)<br>**Analysis**: possible false positives, top attackers and rules | [![Address](docs/screenshots/ip.png)](docs/screenshots/ip.png)<br>**Address page**: what one address did and whether it is blocked |
+| [![Blocked list](docs/screenshots/blocked.png)](docs/screenshots/blocked.png)<br>**Blocked list**: change the term, unblock, move to the allow list | [![Ban everyone](docs/screenshots/massban.png)](docs/screenshots/massban.png)<br>**Ban everyone** who used one attack, after a review |
+| [![Sites](docs/screenshots/sites.png)](docs/screenshots/sites.png)<br>**Sites** with their WAF mode and per-site override | [![Russian UI](docs/screenshots/ru/overview.png)](docs/screenshots/ru/overview.png)<br>**Russian UI** ([all pages](docs/screenshots/ru)) |
+
 ## Features
 
 **See what happens**
