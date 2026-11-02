@@ -8,7 +8,8 @@
 # boris.gb 2026-11-02 21:15 - 0.2.5: attack log shows one status per address (🔒 blocked, ✓ allowed, ⛔ ban button only for the rest)
 # boris.gb 2026-11-02 21:26 - 0.3.0: path traps (ban whoever requests a path), path menu in the top paths, the rule behind every automatic ban
 # boris.gb 2026-11-02 21:40 - 0.3.1: allowed addresses green in top attackers, trapped paths red, path menu on the address page events
-VERSION ?= 0.3.1
+# boris.gb 2026-11-02 21:47 - 0.3.2: traps on a part of the path (contains), remembered "hide blocked" / "hide trapped" switches
+VERSION ?= 0.3.2
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test

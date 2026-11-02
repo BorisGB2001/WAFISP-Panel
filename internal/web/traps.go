@@ -17,10 +17,10 @@ import (
 // prefill it and show who already requested that path.
 func (s *Server) trapsPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	st := s.Policy.State()
-	site, path := r.URL.Query().Get("site"), r.URL.Query().Get("path")
+	site, path, match := r.URL.Query().Get("site"), r.URL.Query().Get("path"), r.URL.Query().Get("match")
 	data := map[string]any{
 		"Traps": st.Traps, "Hits": s.Autoban.TrapHits(), "Sites": s.siteNames(), "Durations": banDurations,
-		"Site": site, "Path": path, "Backends": s.Autoban.Settings().Backends, "Loaded": s.Cfg.Nginx.IncludeFile != "none",
+		"Site": site, "Path": path, "Match": match, "Backends": s.Autoban.Settings().Backends, "Loaded": s.Cfg.Nginx.IncludeFile != "none",
 	}
 	if path != "" {
 		rows, _ := s.massCandidates(filter{Site: site, Path: path, Period: "7d"})
@@ -37,9 +37,9 @@ func (s *Server) trapsPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 }
 
 func (s *Server) trapAdd(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
-	t := policy.Trap{Site: r.FormValue("site"), Path: strings.TrimSpace(r.FormValue("path")), DryRun: r.FormValue("dry_run") == "on",
+	t := policy.Trap{Site: r.FormValue("site"), Path: strings.TrimSpace(r.FormValue("path")), Match: r.FormValue("match"), DryRun: r.FormValue("dry_run") == "on",
 		Meta: policy.Meta{By: rc.User.Name, Reason: strings.TrimSpace(r.FormValue("reason")), At: time.Now()}}
-	again := "/traps?" + url.Values{"site": {t.Site}, "path": {t.Path}}.Encode()
+	again := "/traps?" + url.Values{"site": {t.Site}, "path": {t.Path}, "match": {t.Match}}.Encode()
 	if t.Reason == "" {
 		flashRedirect(w, r, again, "", tr(r, "Give a reason — it goes to the audit log"))
 		return
@@ -75,7 +75,7 @@ func (s *Server) trapAdd(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		flashRedirect(w, r, again, "", errText(r, err))
 		return
 	}
-	s.audit.Log(rc.User.Name, clientIP(r), "trap", fmt.Sprintf("#%d %s%s for %s dry_run=%v: %s", added.ID, t.Site, t.Path, banDurations[i].Label, t.DryRun, t.Reason))
+	s.audit.Log(rc.User.Name, clientIP(r), "trap", fmt.Sprintf("#%d %s%s match=%s for %s dry_run=%v: %s", added.ID, t.Site, t.Path, t.Match, banDurations[i].Label, t.DryRun, t.Reason))
 	flashRedirect(w, r, "/traps", tr(r, "Trap %d set on %s%s", added.ID, t.Site, t.Path), "")
 }
 

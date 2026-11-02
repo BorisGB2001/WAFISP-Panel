@@ -181,3 +181,24 @@ func TestTrapRules(t *testing.T) {
 		t.Error("a duplicate trap accepted")
 	}
 }
+
+func TestTrapContains(t *testing.T) {
+	tr := Trap{ID: 5, Path: ".env", Match: "contains"}
+	if err := tr.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]bool{"/.env": true, "/app/.ENV.bak": true, "/environment": false} {
+		if tr.Matches("any.site", path) != want {
+			t.Errorf("%s: %v", path, !want)
+		}
+	}
+	for _, bad := range []string{"/", "..", "a", "/./"} {
+		if (&Trap{ID: 1, Path: bad, Match: "contains"}).Validate() == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+	before, _ := (&State{Traps: []Trap{tr}}).Files("/r")
+	if !strings.Contains(before, `SecRule REQUEST_FILENAME "@contains .env" "id:7720005,`) {
+		t.Fatal(before)
+	}
+}

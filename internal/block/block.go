@@ -60,10 +60,12 @@ type Entry struct {
 // which one fired.
 type Rule struct {
 	Kind string `json:"kind"` // trap | threshold | instant
-	// trap: its id, site (empty: every site) and path prefix
-	Trap int    `json:"trap,omitempty"`
-	Site string `json:"site,omitempty"`
-	Path string `json:"path,omitempty"`
+	// trap: its id, site (empty: every site) and path prefix, or a part of
+	// the path with Match "contains"
+	Trap  int    `json:"trap,omitempty"`
+	Site  string `json:"site,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Match string `json:"match,omitempty"`
 	// threshold: Count denied requests within WindowMin minutes
 	Count     int `json:"count,omitempty"`
 	WindowMin int `json:"window_min,omitempty"`

@@ -641,6 +641,22 @@ func TestTraps(t *testing.T) {
 	if _, b := get(t, ts, c, "/?period=7d"); !strings.Contains(b, `<li class="allowed">`) {
 		t.Fatal("the allowed address is not marked in the top attackers")
 	}
+	// Hiding remembers itself in a cookie; the blocked or trapped rows go.
+	for _, name := range []string{"hide_blocked", "hide_trapped"} {
+		resp, _ = c.Get(ts.URL + "/pref/" + name + "/on?next=/")
+		body(t, resp)
+	}
+	if _, b := get(t, ts, c, "/?period=7d"); strings.Contains(b, `details class="pathmenu trapped"`) || !strings.Contains(b, "☑") {
+		t.Fatal("a trapped path is still shown with hide_trapped on")
+	}
+	resp, _ = c.Get(ts.URL + "/pref/hide_trapped/off?next=/")
+	body(t, resp)
+	// A trap on a part of the path covers every site.
+	resp, _ = c.PostForm(ts.URL+"/traps", url.Values{"csrf": {csrf}, "path": {"save"}, "match": {"contains"}, "ttl": {"24h"}, "reason": {"any save"}, "confirm": {"yes"}})
+	body(t, resp)
+	if traps := env.Policy.State().Traps; len(traps) != 2 || traps[1].Match != "contains" || !traps[1].Matches("blog.example.ru", "/x/save.php") {
+		t.Fatalf("contains trap %+v", traps)
+	}
 	// A ban made by the trap says so, with the rule.
 	err := env.Blocks.Block(context.Background(), block.Entry{IP: "203.0.113.1", Backends: []string{"ipset"}, By: "autoban", Via: "trap",
 		Reason: "auto-ban #1: trap 1: POST shop.example.ru/admin/save", At: time.Now(),

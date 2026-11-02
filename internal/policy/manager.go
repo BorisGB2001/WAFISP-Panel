@@ -395,7 +395,7 @@ func (s *State) AddTrap(t Trap) (Trap, error) {
 		return t, err
 	}
 	for _, x := range s.Traps {
-		if x.Site == t.Site && strings.EqualFold(x.Path, t.Path) {
+		if x.Site == t.Site && x.Match == t.Match && strings.EqualFold(x.Path, t.Path) {
 			return t, fmt.Errorf("trap %d already covers this path", x.ID)
 		}
 	}

@@ -104,13 +104,16 @@
 {{define "blockhow"}}{{if eq .Via "trap"}}{{t "automatically by the panel, path trap"}}{{else if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically by the panel, auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
 
 {{/* banrule: . is a block.Rule — which automatic rule fired */}}
-{{define "banrule"}}{{if eq .Kind "trap"}}<a href="/traps">{{t "trap #%d" .Trap}}</a>: {{t "requests to %s on %s" .Path (or .Site (t "every site"))}}{{else if eq .Kind "threshold"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "%d denied requests within %d min" .Count .WindowMin}}{{else if eq .Kind "instant"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "one denied request of class %s with score ≥ %d" (cat .Class) .Score}}{{end}}{{if gt .Offence 1}} · {{t "ban #%d of this address" .Offence}}{{end}}{{end}}
+{{define "banrule"}}{{if eq .Kind "trap"}}<a href="/traps">{{t "trap #%d" .Trap}}</a>: {{if eq .Match "contains"}}{{t "requests whose path contains %s, on %s" .Path (or .Site (t "every site"))}}{{else}}{{t "requests to %s on %s" .Path (or .Site (t "every site"))}}{{end}}{{else if eq .Kind "threshold"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "%d denied requests within %d min" .Count .WindowMin}}{{else if eq .Kind "instant"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "one denied request of class %s with score ≥ %d" (cat .Class) .Score}}{{end}}{{if gt .Offence 1}} · {{t "ban #%d of this address" .Offence}}{{end}}{{end}}
 
 {{/* pathlist: .L is a top list keyed site+path; .Admin shows the ban links */}}
 {{define "pathlist"}}{{$admin := .Admin}}
 {{if .L}}<ol class="top">{{$max := (index .L 0).Count}}{{range .L}}{{$sp := splitPath .Key}}<li class="{{if .Extra}}trapped{{end}}"><span class="k">{{template "pathmenu" (dict "Site" (index $sp 0) "Path" (index $sp 1) "Label" .Key "Trap" .Extra "Admin" $admin)}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
 {{else}}<p class="muted">{{t "No data"}}</p>{{end}}
 {{end}}
+
+{{/* hidetoggle: a remembered switch; .Name is the pref, .On its state, .Next the page */}}
+{{define "hidetoggle"}}<a class="toggle" href="/pref/{{.Name}}/{{if .On}}off{{else}}on{{end}}?next={{.Next}}" title="{{t "Remembered in this browser"}}">{{if .On}}☑{{else}}☐{{end}} {{.Label}}</a>{{end}}
 
 {{/* pathmenu: one site+path with its menu; .Trap is the id of the trap on it, if any */}}
 {{define "pathmenu"}}<details class="pathmenu{{if .Trap}} trapped{{end}}"><summary title="{{.Site}}{{.Path}}">{{if .Label}}{{.Label}}{{else}}—{{end}}</summary><span class="menu">

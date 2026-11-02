@@ -13,10 +13,10 @@
     <thead><tr><th>#</th><th>{{t "Path"}}</th><th>{{t "Ban"}}</th><th>{{t "Mode"}}</th><th>{{t "Hits"}}</th><th>{{t "Last"}}</th><th>{{t "Reason"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
     <tbody>{{range $d.Traps}}{{$h := index $d.Hits .ID}}<tr class="{{if .Disabled}}off{{end}}">
       <td>{{.ID}}</td>
-      <td class="mono">{{.Path}}<br><small class="muted">{{if .Site}}{{.Site}}{{else}}{{t "every site"}}{{end}}</small></td>
+      <td class="mono">{{if eq .Match "contains"}}<small class="muted">{{t "contains"}}</small> {{end}}{{.Path}}<br><small class="muted">{{if .Site}}{{.Site}}{{else}}{{t "every site"}}{{end}}</small></td>
       <td class="nowrap">{{if eq .Duration 0}}<b>{{t "for good"}}</b>{{else}}{{dur .Duration}}{{end}}</td>
       <td>{{if .Disabled}}<span class="badge">{{t "off"}}</span>{{else if .DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "banning"}}</span>{{end}}</td>
-      <td><a href="/attacks?{{if .Site}}site={{.Site}}&amp;{{end}}path={{.Path}}&amp;period=30d">{{$h.Hits}}</a></td>
+      <td>{{$h.Hits}}</td>
       <td class="nowrap">{{if $h.Hits}}{{ago $h.Last}}{{else}}—{{end}}</td>
       <td class="small">{{.Reason}}<br><small class="muted">{{.By}} · {{dt .At}}</small></td>
       {{if $.IsAdmin}}<td class="nowrap">
@@ -42,8 +42,12 @@
   {{end}}
   <div class="row">
     <label>{{t "Site"}}<select name="site"><option value="">{{t "every site"}}</option>{{range $d.Sites}}<option value="{{.}}" {{if eq . $d.Site}}selected{{end}}>{{.}}</option>{{end}}</select></label>
-    <label>{{t "Path starts with"}}<input name="path" value="{{$d.Path}}" required placeholder="/wp-login.php" class="mono"></label>
+    <label>{{t "Path"}}<input name="path" value="{{$d.Path}}" required placeholder="/wp-login.php {{t "or"}} .env" class="mono"></label>
     <label>{{t "Ban for"}}<select name="ttl">{{range $d.Durations}}<option value="{{.Key}}" {{if eq .Key "0"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  </div>
+  <div class="choice">
+    <label class="radio"><input type="radio" name="match" value="" {{if ne $d.Match "contains"}}checked{{end}}> <b>{{t "starts with"}}</b> — {{t "/wp-login.php catches /wp-login.php and /wp-login.php?x=1, but not /blog/wp-login.php"}}</label>
+    <label class="radio"><input type="radio" name="match" value="contains" {{if eq $d.Match "contains"}}checked{{end}}> <b>{{t "contains"}}</b> — {{t ".env catches /.env, /app/.env, /.env.bak on any page: one trap for every site"}}</label>
   </div>
   <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required placeholder="{{t "e.g. nobody but scanners opens the old admin page"}}"></label>
   <label class="radio"><input type="checkbox" name="dry_run"> {{t "Dry run: log and record whom it would ban, block nobody"}}</label>

@@ -141,6 +141,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginPost)
 	mux.HandleFunc("GET /lang/{lang}", s.setLang)
 	mux.HandleFunc("GET /theme/{theme}", s.setTheme)
+	mux.HandleFunc("GET /pref/{name}/{value}", s.setPref)
 
 	view := func(p string, h handler) { mux.Handle(p, s.authed(h, false)) }
 	admin := func(p string, h handler) { mux.Handle(p, s.authed(h, true)) }

@@ -81,15 +81,26 @@ type Trap struct {
 	Site   string `json:"site,omitempty"` // empty: every site
 	// Hosts are the server names of Site, matched against Host.
 	Hosts []string `json:"hosts,omitempty"`
-	// Path is a prefix of the request path, compared without case.
+	// Path is a prefix of the request path or, with Match "contains", any
+	// part of it ("/.env", ".git/"); compared without case.
 	Path     string        `json:"path"`
+	Match    string        `json:"match,omitempty"` // "" (prefix) | "contains"
 	Duration time.Duration `json:"duration"`
 	Meta
 }
 
 func (t *Trap) Validate() error {
-	if !pathRe.MatchString(t.Path) || len(t.Path) < 2 {
-		return fmt.Errorf("the trap path must start with /, be longer than / alone and hold no spaces or quotes")
+	switch t.Match {
+	case "":
+		if !pathRe.MatchString(t.Path) || len(t.Path) < 2 {
+			return fmt.Errorf("the trap path must start with /, be longer than / alone and hold no spaces or quotes")
+		}
+	case "contains":
+		if !partRe.MatchString(t.Path) || strings.Trim(t.Path, "/.") == "" {
+			return fmt.Errorf("the part of the path must be 3 to 255 characters, more than slashes and dots, with no spaces or quotes")
+		}
+	default:
+		return fmt.Errorf("unknown match %q", t.Match)
 	}
 	if t.Site != "" && len(t.Hosts) == 0 {
 		return fmt.Errorf("site %s has no server names", t.Site)
@@ -112,6 +123,9 @@ func (t *Trap) Validate() error {
 func (t *Trap) Matches(site, path string) bool {
 	if t.Disabled || (t.Site != "" && t.Site != site) {
 		return false
+	}
+	if t.Match == "contains" {
+		return strings.Contains(strings.ToLower(path), strings.ToLower(t.Path))
 	}
 	return strings.HasPrefix(strings.ToLower(path), strings.ToLower(t.Path))
 }
@@ -140,6 +154,7 @@ var (
 	targetRe = regexp.MustCompile(`^(ARGS|ARGS_GET|ARGS_POST|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_HEADERS|XML|FILES|FILES_NAMES)(:[A-Za-z0-9_\-\[\].$/@ ]{1,128})?$`)
 	hostRe   = regexp.MustCompile(`^[a-z0-9*]([a-z0-9.\-*]{0,251}[a-z0-9])?$`)
 	pathRe   = regexp.MustCompile(`^/[^\s"'\\]{0,255}$`)
+	partRe   = regexp.MustCompile(`^[^\s"'\\]{3,255}$`)
 )
 
 // Validate checks an exclusion before it is saved; values end up inside
@@ -254,13 +269,16 @@ func (s *State) Files(dir string) (before, after string) {
 		}
 		fmt.Fprintf(&b, "# trap %d: %s%s (%s, %s)\n", t.ID, t.Site, t.Path, oneLine(t.By), oneLine(t.Reason))
 		head := fmt.Sprintf("id:%d,phase:1,%s,log,auditlog,msg:'WAFISP Panel: trap %s',tag:'wafisp-panel',tag:'wafisp-trap'", idTrapBase+t.ID, action, t.Path)
-		path := strings.ToLower(t.Path)
+		op := "@beginsWith " + strings.ToLower(t.Path)
+		if t.Match == "contains" {
+			op = "@contains " + strings.ToLower(t.Path)
+		}
 		if t.Site == "" {
-			fmt.Fprintf(&b, "SecRule REQUEST_FILENAME \"@beginsWith %s\" \"%s,t:lowercase\"\n", path, head)
+			fmt.Fprintf(&b, "SecRule REQUEST_FILENAME \"%s\" \"%s,t:lowercase\"\n", op, head)
 			continue
 		}
 		fmt.Fprintf(&b, "SecRule REQUEST_HEADERS:Host \"@rx %s\" \"%s,t:lowercase,chain\"\n", hostsRx(t.Hosts), head)
-		fmt.Fprintf(&b, "\tSecRule REQUEST_FILENAME \"@beginsWith %s\" \"t:lowercase\"\n", path)
+		fmt.Fprintf(&b, "\tSecRule REQUEST_FILENAME \"%s\" \"t:lowercase\"\n", op)
 	}
 
 	for _, x := range s.Exclusions {

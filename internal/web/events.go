@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -53,13 +54,14 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	pending, lastErr, _ := s.Policy.Status()
 	data := map[string]any{
 		"F": f, "Periods": periods, "A": a, "UniqueIPs": len(a.IPs), "SitesHit": len(a.Sites),
-		"Chart":      areaChart("ov", a.Labels, []series{{Name: tr(r, "blocked"), Slot: 1, Values: a.BucketDenied}, {Name: tr(r, "passed"), Slot: 3, Values: a.BucketPassed}}),
-		"CatsDonut":  donut(slices, tr(r, "events")),
-		"CatSlices":  slices,
-		"IPs":        s.markBlocked(a.IPs.top(10)),
-		"Sites":      a.Sites.top(10),
-		"Rules":      rules,
-		"Paths":      s.markTraps(a.Paths.top(10)),
+		"Chart":       areaChart("ov", a.Labels, []series{{Name: tr(r, "blocked"), Slot: 1, Values: a.BucketDenied}, {Name: tr(r, "passed"), Slot: 3, Values: a.BucketPassed}}),
+		"CatsDonut":   donut(slices, tr(r, "events")),
+		"CatSlices":   slices,
+		"IPs":         s.topIPs(a.IPs, 10, pref(r, "hide_blocked")),
+		"Sites":       a.Sites.top(10),
+		"Rules":       rules,
+		"Paths":       s.topPaths(a.Paths, 10, pref(r, "hide_trapped")),
+		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "Self": r.URL.RequestURI(),
 		"Countries":  a.Countries.top(10),
 		"Files":      s.Collector.Files(),
 		"Stored":     s.Store.Len(),
@@ -204,6 +206,26 @@ func (s *Server) markBlocked(list []kv) []kv {
 	return list
 }
 
+// topIPs is the top n addresses, marked; with hide the blocked ones are
+// left out and the list is filled from further down.
+func (s *Server) topIPs(c counter, n int, hide bool) []kv {
+	list := s.markBlocked(c.top(n + 500))
+	if hide {
+		list = slices.DeleteFunc(list, func(x kv) bool { return x.Extra == "blocked" })
+	}
+	return list[:min(n, len(list))]
+}
+
+// topPaths is the top n paths, marked; with hide the trapped ones are left
+// out.
+func (s *Server) topPaths(c counter, n int, hide bool) []kv {
+	list := s.markTraps(c.top(n + 500))
+	if hide {
+		list = slices.DeleteFunc(list, func(x kv) bool { return x.Extra != "" })
+	}
+	return list[:min(n, len(list))]
+}
+
 // trapOf is the id of the enabled trap that site+path falls into, or "".
 func trapOf(traps []policy.Trap, site, path string) string {
 	for _, t := range traps {
@@ -234,7 +256,7 @@ func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		minIPs = 3
 	}
 	a := aggregate(s.Store, f, time.Now())
-	attackers := s.markBlocked(a.IPs.top(30))
+	attackers := s.topIPs(a.IPs, 30, pref(r, "hide_blocked"))
 	rules := a.Rules.top(30)
 	for i := range rules {
 		rules[i].Extra = a.RuleMsg[rules[i].Key]
@@ -242,7 +264,8 @@ func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	s.render(w, r, rc, "analysis.html", page{Title: "Analysis", Active: "analysis", Data: map[string]any{
 		"F": f, "Periods": periods, "Sites": s.siteNames(), "MinIPs": minIPs,
 		"Candidates": candidates(s.Store, f, minIPs), "Attackers": attackers, "Rules": rules,
-		"Paths": s.markTraps(a.Paths.top(30)), "Countries": a.Countries.top(30), "Total": a.Total,
+		"Paths": s.topPaths(a.Paths, 30, pref(r, "hide_trapped")), "Countries": a.Countries.top(30), "Total": a.Total,
+		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "Self": r.URL.RequestURI(),
 	}})
 }
 

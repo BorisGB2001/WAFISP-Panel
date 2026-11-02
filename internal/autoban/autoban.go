@@ -279,7 +279,7 @@ func (e *Engine) trap(ev event.Event, now time.Time) *Decision {
 		n := e.offence(ev.SrcIP, now)
 		return &Decision{IP: ev.SrcIP, Site: ev.Site, At: now, Offence: n, Duration: t.Duration, DryRun: t.DryRun,
 			Reason:  fmt.Sprintf("trap %d: %s %s%s", t.ID, ev.Method, ev.Host, ev.Path()),
-			Rule:    block.Rule{Kind: "trap", Trap: t.ID, Site: t.Site, Path: t.Path, Offence: n},
+			Rule:    block.Rule{Kind: "trap", Trap: t.ID, Site: t.Site, Path: t.Path, Match: t.Match, Offence: n},
 			Samples: []event.Event{ev}}
 	}
 	return nil

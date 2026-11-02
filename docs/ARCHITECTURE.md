@@ -37,7 +37,7 @@ The panel owns `rules_dir` (`/etc/wafisp/modsec`) and rewrites it from `data_dir
 
 | File | Loaded | Content |
 |---|---|---|
-| `before.conf` | before CRS | `allow.txt` → `ctl:ruleEngine=DetectionOnly` (logged, never blocked); `deny.txt` → `deny,status:403`; site modes (`ctl:ruleEngine=` by Host); traps (`REQUEST_FILENAME @beginsWith` path, by Host for one site: `deny,status:403,log,auditlog`, or `pass` in dry run); exclusions limited to a site or a path (`ctl:ruleRemoveById`, `ctl:ruleRemoveTargetById`, ...) |
+| `before.conf` | before CRS | `allow.txt` → `ctl:ruleEngine=DetectionOnly` (logged, never blocked); `deny.txt` → `deny,status:403`; site modes (`ctl:ruleEngine=` by Host); traps (`REQUEST_FILENAME @beginsWith` path or `@contains` part, by Host for one site: `deny,status:403,log,auditlog`, or `pass` in dry run); exclusions limited to a site or a path (`ctl:ruleRemoveById`, `ctl:ruleRemoveTargetById`, ...) |
 | `after.conf` | after CRS | exclusions for every site (`SecRuleRemoveById`, `SecRuleUpdateTargetById`) |
 | `allow.txt`, `deny.txt` | by `@ipMatchFromFile` | addresses and subnets |
 

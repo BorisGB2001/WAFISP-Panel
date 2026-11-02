@@ -453,3 +453,8 @@ ol.top li.trapped i { background: var(--bad-bg); }
 ol.top li.trapped i::after { background: var(--bad); }
 ol.top li.allowed .k a, a.allowed { color: var(--good); font-weight: 600; }
 details.pathmenu .menu { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 10px; font-size: 13px; }
+
+/* remembered display switches in card heads; the trap match choice */
+a.toggle { font-size: 12px; color: var(--muted); margin-left: auto; margin-right: 12px; white-space: nowrap; }
+a.toggle:hover { color: var(--accent); }
+.choice { display: flex; flex-direction: column; gap: 6px; }

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -221,6 +222,31 @@ func (s *Server) setTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, safeNext(r.URL.Query().Get("next")), http.StatusSeeOther)
+}
+
+// prefs are the per-browser display switches kept in cookies.
+var prefs = []string{"hide_blocked", "hide_trapped"}
+
+// setPref turns one display switch on or off for a year and goes back.
+func (s *Server) setPref(w http.ResponseWriter, r *http.Request) {
+	name, value := r.PathValue("name"), r.PathValue("value")
+	if !slices.Contains(prefs, name) || (value != "on" && value != "off") {
+		http.NotFound(w, r)
+		return
+	}
+	c := &http.Cookie{Name: "wafisp_" + name, Value: "1", Path: "/", MaxAge: 365 * 24 * 3600,
+		HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode}
+	if value == "off" {
+		c.Value, c.MaxAge = "", -1
+	}
+	http.SetCookie(w, c)
+	http.Redirect(w, r, safeNext(r.URL.Query().Get("next")), http.StatusSeeOther)
+}
+
+// pref tells whether a display switch is on in this browser.
+func pref(r *http.Request, name string) bool {
+	c, err := r.Cookie("wafisp_" + name)
+	return err == nil && c.Value == "1"
 }
 
 // langFuncs are the template functions bound to one language.

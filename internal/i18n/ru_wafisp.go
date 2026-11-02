@@ -336,4 +336,13 @@ var ruWAFISP = map[string]string{
 	"Open trap #%s":                                  "Открыть ловушку №%s",
 	"Whoever requests this path gets banned":         "Каждый, кто запросит этот путь, будет забанен",
 	"allowed":                                        "в белом списке",
+	".env catches /.env, /app/.env, /.env.bak on any page: one trap for every site":         ".env ловит /.env, /app/.env, /.env.bak на любой странице: одна ловушка на все сайты",
+	"/wp-login.php catches /wp-login.php and /wp-login.php?x=1, but not /blog/wp-login.php": "/wp-login.php ловит /wp-login.php и /wp-login.php?x=1, но не /blog/wp-login.php",
+	"Remembered in this browser":             "Запоминается в этом браузере",
+	"hide blocked":                           "скрыть заблокированные",
+	"hide trapped":                           "скрыть пути в ловушках",
+	"requests whose path contains %s, on %s": "запросы, где путь содержит %s, сайт: %s",
+	"starts with":                            "начинается с",
+	"contains":                               "содержит",
+	"the part of the path must be 3 to 255 characters, more than slashes and dots, with no spaces or quotes": "часть пути — от 3 до 255 символов, не только слэши и точки, без пробелов и кавычек",
 }
