@@ -249,7 +249,6 @@ var ruWAFISP = map[string]string{
 	"response %d":          "ответ %d",
 	"score ≥ %d":           "оценка ≥ %d",
 	"sites hit: %d":        "затронуто сайтов: %d",
-	"unblocked by hand":    "до ручной разблокировки",
 	"until removed":        "пока не уберут",
 	"until unblocked":      "до разблокировки",
 	"“Exclude…” opens the exclusion form for this rule, site, path and variable. Check that the request is legitimate first.": "«Исключить…» открывает форму исключения для этого правила, сайта, пути и переменной. Сначала убедитесь, что запрос легитимный.",

@@ -241,7 +241,9 @@ ul.types li { break-inside: avoid; }
 .note.warn { background: var(--warn-bg); color: var(--warn); }
 form.stack { gap: 10px; margin-top: 10px; min-width: 300px; }
 label.radio { flex-direction: row; align-items: center; gap: 6px; color: var(--fg); font-size: 13px; }
-.blockform { display: grid !important; grid-template-columns: 220px 140px 1fr auto; gap: 12px; align-items: end; margin-top: 16px; }
+.blockform { display: grid !important; grid-template-columns: minmax(170px, 1fr) minmax(170px, 1.5fr) 130px; gap: 12px; align-items: end; margin-top: 16px; }
+.blockform fieldset, .blockform > button { grid-column: 1 / -1; }
+.blockform > button { justify-self: start; }
 .blockform .actions { margin: 0; }
 @media (max-width: 900px) { .blockform { grid-template-columns: 1fr; } }
 .statbar { display: flex; gap: 12px; align-items: center; margin: -6px 0 14px; }

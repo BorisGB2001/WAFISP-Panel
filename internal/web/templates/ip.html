@@ -7,7 +7,7 @@
   <dl class="kv">
     <dt>{{t "Events"}}</dt><dd><a href="/attacks?ip={{$d.IP}}&amp;period={{$d.F.Period}}">{{$a.Total}}</a> · {{t "blocked %d, passed %d" $a.Denied $a.Passed}}</dd>
     <dt>{{t "Seen"}}</dt><dd>{{dt $d.First}} — {{dt $d.Last}}</dd>
-    {{if $d.IsBlocked}}<dt>{{t "Block"}}</dt><dd>{{$d.Blocked.Reason}} · {{$d.Blocked.By}} · {{t "until"}} {{if $d.Blocked.Expires.IsZero}}{{t "unblocked by hand"}}{{else}}{{dt $d.Blocked.Expires}}{{end}} · {{join $d.Blocked.Backends ", "}}</dd>{{end}}
+    {{if $d.IsBlocked}}<dt>{{t "Blocked"}}</dt><dd>{{$d.Blocked.Reason}} · {{$d.Blocked.By}} · {{if $d.Blocked.Expires.IsZero}}{{t "for good"}}{{else}}{{t "until"}} {{dt $d.Blocked.Expires}}{{end}} · {{join $d.Blocked.Backends ", "}}</dd>{{end}}
   </dl>
 </div>
 
