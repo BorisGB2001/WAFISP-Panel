@@ -1,0 +1,30 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="card">
+  <h2>{{t "Alert channels"}}</h2>
+  {{if $d.Channels}}
+  <table>
+    <thead><tr><th>{{t "Channel"}}</th><th>{{t "Type"}}</th><th>{{t "Destination"}}</th><th>{{t "Delivered"}}</th><th>{{t "Failed"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <tbody>
+    {{range $d.Channels}}<tr>
+      <td><b>{{.Name}}</b></td><td>{{.Type}}</td><td class="mono">{{.Target}}</td><td>{{.Sent}}</td>
+      <td>{{if .Failed}}<em class="bad">{{.Failed}}</em>{{else}}0{{end}}</td>
+      {{if $.IsAdmin}}<td><form method="post" action="/channels/{{.Name}}/test"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn">{{t "Send test alert"}}</button></form></td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">{{t "No channels configured."}}</p>{{end}}
+  <p class="muted small">{{t "Channels and their secrets are set in the service config on the server (/etc/wafisp). Counters start with the service."}}</p>
+</div>
+<div class="card">
+  <h2>SIEM</h2>
+  {{if $d.SIEM}}
+  <table>
+    <thead><tr><th>{{t "Receiver"}}</th><th>{{t "Address"}}</th><th>{{t "Format"}}</th><th>{{t "Events sent"}}</th><th>{{t "Dropped"}}</th></tr></thead>
+    <tbody>
+    {{range $d.SIEM}}<tr><td><b>{{.Name}}</b></td><td class="mono">{{.Target}}</td><td>{{.Format}}</td><td>{{.Sent}}</td><td>{{if .Dropped}}<em class="bad">{{.Dropped}}</em>{{else}}0{{end}}</td></tr>{{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">{{t "No SIEM configured."}}</p>{{end}}
+</div>
+{{end}}

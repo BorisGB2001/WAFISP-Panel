@@ -1,0 +1,50 @@
+{{define "content"}}
+{{$d := .Data}}
+<form class="filters card inlinefilters" method="get" action="/blocked">
+  <label>{{t "Search"}}<input name="q" value="{{$d.Q}}" placeholder="{{t "address, site or reason"}}"></label>
+  <label>{{t "Blocked by"}}<select name="by">
+    <option value="">{{t "All"}}</option>
+    <option value="autoban" {{if eq $d.By "autoban"}}selected{{end}}>{{t "auto-ban"}}</option>
+    <option value="people" {{if eq $d.By "people"}}selected{{end}}>{{t "people"}}</option>
+  </select></label>
+  <div class="actions"><button class="btn">{{t "Show"}}</button></div>
+</form>
+
+<section class="card">
+  <div class="cardhead"><h2>{{t "Blocked: %d" $d.Total}}</h2><span class="muted small">{{t "by the auto-ban: %d" $d.Auto}} · <a href="/blocks#block">{{t "block an address"}} →</a></span></div>
+  {{if $d.Rows}}
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "Reason"}}</th><th>{{t "By"}}</th><th>{{t "Since"}}</th><th>{{t "Until"}}</th><th title="{{t "requests that still reached the WAF after the block"}}">{{t "Hits since"}}</th>{{if .IsAdmin}}<th>{{t "Actions"}}</th>{{end}}</tr></thead>
+    <tbody>
+    {{range $d.Rows}}<tr>
+      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a><br><small class="muted">{{range .Backends}}{{.}} {{end}}{{if .Site}}· {{.Site}}{{end}}</small></td>
+      <td class="small">{{.Reason}}</td>
+      <td>{{if eq .By "autoban"}}<span class="badge warn">{{t "auto-ban"}}</span>{{else}}{{.By}}{{end}}</td>
+      <td class="nowrap">{{dt .At}}</td>
+      <td class="nowrap">{{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{dt .Expires}}<br><small class="muted">{{left .Expires}}</small>{{end}}</td>
+      <td>{{.Hits}}</td>
+      {{if $.IsAdmin}}<td>
+        <form method="post" action="/blocks/expiry" class="rowform">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="ip" value="{{.IP}}"><input type="hidden" name="back" value="/blocked">
+          <select name="ttl" aria-label="{{t "New duration"}}">{{range $d.TTLs}}<option value="{{.Key}}">{{t .Label}}</option>{{end}}</select>
+          <button class="btn">{{t "Set time"}}</button>
+        </form>
+        <details class="inline"><summary>{{t "To allow list…"}}</summary>
+          <form method="post" action="/blocks/allow" class="rowform">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="ip" value="{{.IP}}"><input type="hidden" name="back" value="/blocked">
+            <input name="reason" required placeholder="{{t "why it is trusted"}}">
+            <button class="btn">{{t "Move"}}</button>
+          </form>
+        </details>
+        <form method="post" action="/blocks/unblock" class="rowform">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="ip" value="{{.IP}}"><input type="hidden" name="back" value="/blocked">
+          <button class="btn danger">{{t "Unblock"}}</button>
+        </form>
+      </td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  <p class="muted small">{{t "A new time counts from now. “To allow list” unblocks the address and the WAF stops inspecting it on every site."}}</p>
+  {{else}}<p class="muted">{{t "No addresses are blocked by the panel."}}</p>{{end}}
+</section>
+{{end}}

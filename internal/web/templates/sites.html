@@ -1,0 +1,36 @@
+{{define "content"}}
+{{$d := .Data}}
+<section class="card">
+  <p class="muted small">{{t "Sites and their WAF mode as ISPmanager set it. The panel can override the mode without touching ISPmanager: its rule switches the engine for the site's host names. “As set in ISPmanager” removes the override."}}</p>
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "Site"}}</th><th>{{t "Owner"}}</th><th>WAF</th><th>{{t "Events 24 h"}}</th><th>{{t "7 days"}}</th><th>{{t "Last"}}</th><th>{{t "Own rule files"}}</th>{{if .IsAdmin}}<th>{{t "Mode"}}</th>{{end}}</tr></thead>
+    <tbody>
+    {{range $d.Sites}}<tr class="{{if or (eq .WAF "Off") (eq .WAF "") (eq .Override "Off")}}warnrow{{end}}">
+      <td><b><a href="/attacks?site={{.Name}}">{{.Name}}</a></b><br><small class="muted">{{join .Hosts " "}}</small></td>
+      <td>{{.Owner}}</td>
+      <td>{{template "engine" .WAF}}{{if .Override}}<br>→ {{template "engine" .Override}} <small class="muted">{{t "panel"}}</small>{{end}}</td>
+      <td>{{.Events24}}{{if .Passed24}} <small class="warn">({{t "%d passed" .Passed24}})</small>{{end}}</td>
+      <td>{{.Week}}</td>
+      <td class="nowrap">{{if .LastEvent.IsZero}}—{{else}}{{ago .LastEvent}}{{end}}</td>
+      <td class="small mono">{{join .Extra ", "}}</td>
+      {{if $.IsAdmin}}<td>
+        <details><summary>{{t "Change…"}}</summary>
+          <form method="post" action="/sites/{{.Name}}/mode" class="stack">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <label class="radio"><input type="radio" name="engine" value="" {{if not .Override}}checked{{end}}> {{t "as set in ISPmanager"}} ({{or .WAF "—"}})</label>
+            <label class="radio"><input type="radio" name="engine" value="DetectionOnly" {{if eq .Override "DetectionOnly"}}checked{{end}}> <b>DetectionOnly</b> — {{t "log only, block nothing"}}</label>
+            <label class="radio"><input type="radio" name="engine" value="Off" {{if eq .Override "Off"}}checked{{end}}> <b>Off</b> — {{t "no inspection at all"}}</label>
+            <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required></label>
+            <label>{{t "To switch off, type"}} <span class="mono">{{.Name}}</span><input name="confirm" autocomplete="off"></label>
+            <button class="btn danger">{{t "Apply"}}</button>
+          </form>
+        </details>
+      </td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  <p class="muted small">{{t "A panel override cannot switch blocking on for a site where ISPmanager has the WAF off: nginx does not run ModSecurity there at all."}}</p>
+</section>
+{{end}}
+
+{{define "engine"}}{{if eq . "On"}}<span class="badge good">● {{t "Blocking"}}</span>{{else if eq . "DetectionOnly"}}<span class="badge warn">◐ DetectionOnly</span>{{else if eq . "Off"}}<span class="badge bad">✕ {{t "Off"}}</span>{{else}}<span class="badge">{{t "no WAF"}}</span>{{end}}{{end}}

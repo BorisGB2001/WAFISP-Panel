@@ -1,0 +1,43 @@
+{{define "content"}}
+{{$d := .Data}}{{$f := $d.F}}
+<form class="filters card" method="get" action="/analysis">
+  {{template "periods" $d}}
+  <label>{{t "Site"}}<select name="site"><option value="">{{t "All"}}</option>{{range $d.Sites}}<option {{if eq . $f.Site}}selected{{end}}>{{.}}</option>{{end}}</select></label>
+  <label>{{t "Action"}}<select name="action">
+    <option value="">{{t "All"}}</option>
+    <option value="deny" {{if eq $f.Action "deny"}}selected{{end}}>{{t "Blocked"}}</option>
+    <option value="pass" {{if eq $f.Action "pass"}}selected{{end}}>{{t "Passed"}}</option>
+  </select></label>
+  <label>{{t "Visitors ≥"}}<input name="min_ips" type="number" min="1" value="{{$d.MinIPs}}" style="width:6em"></label>
+  <div class="actions"><button class="btn primary">{{t "Show"}}</button></div>
+</form>
+
+<section class="card">
+  <h2>{{t "Possible false positives"}}</h2>
+  <p class="muted small">{{t "The same rule on the same site, path and variable, triggered by many different visitors — addresses that touched at most 3 paths in the period. Scanners try hundreds of URLs and drop out; a form the WAF breaks is hit by every visitor who uses it. Open the events to check, then add an exclusion."}}</p>
+  {{if $d.Candidates}}
+  <div class="scroll"><table>
+    <thead><tr><th title="{{t "addresses that touched at most 3 paths: visitors, not scanners"}}">{{t "Visitors"}}</th><th>{{t "All addresses"}}</th><th>{{t "Events"}}</th><th>{{t "Site and path"}}</th><th>{{t "Rule"}}</th><th>{{t "Variable"}}</th><th>{{t "Last"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <tbody>
+    {{range $d.Candidates}}<tr class="{{if scanRule .Rule}}off{{end}}">
+      <td><b>{{.Focused}}</b></td>
+      <td>{{.IPs}}</td>
+      <td><a href="/attacks?{{$f.With "site" .Site}}&amp;rule={{.Rule}}&amp;path={{.Path}}">{{.Count}}</a>{{if lt .Denied .Count}} <small class="muted">({{t "%d blocked" .Denied}})</small>{{end}}</td>
+      <td class="url"><span class="muted">{{.Site}}</span> {{cut .Path 70}}</td>
+      <td class="mono" title="{{.Msg}}">{{.Rule}}{{if scanRule .Rule}} <span class="badge" title="{{t "This rule fires almost only on scanners"}}">{{t "typical scan"}}</span>{{end}}<br><small class="muted">{{cut .Msg 50}}</small></td>
+      <td class="mono small">{{.Var}}</td>
+      <td class="nowrap">{{ago .Last}}</td>
+      {{if $.IsAdmin}}<td><a class="btn" href="/exclusions?site={{.Site}}&amp;path={{.Path}}&amp;rule={{.Rule}}&amp;var={{.Var}}&amp;reason={{(print "false positive: " .Focused " visitors")}}">{{t "Exclude…"}}</a></td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  {{else}}<p class="muted">{{t "Nothing found for this period."}}</p>{{end}}
+</section>
+
+<div class="grid2">
+  <section class="card"><h3>{{t "Top attackers"}}</h3>{{template "iplist" $d.Attackers}}</section>
+  <section class="card"><h3>{{t "Top rules"}}</h3>{{template "rulelist" $d.Rules}}</section>
+  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card"><h3>{{t "Countries"}}</h3>{{template "toplist" $d.Countries}}</section>
+</div>
+{{end}}

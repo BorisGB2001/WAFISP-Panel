@@ -1,0 +1,37 @@
+{{define "content"}}
+<div class="card">
+  <table>
+    <thead><tr><th>{{t "Username"}}</th><th>{{t "Role"}}</th><th>{{t "Created"}}</th><th>{{t "Last sign-in"}}</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data}}<tr>
+      <td><b>{{.Name}}</b>{{if eq .Name $.User.Name}} <small class="muted">({{t "you"}})</small>{{end}}</td>
+      <td>
+        <form method="post" action="/users/{{.Name}}/role" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <select name="role">
+            <option value="viewer" {{if eq .Role "viewer"}}selected{{end}}>viewer — {{t "read only"}}</option>
+            <option value="admin" {{if eq .Role "admin"}}selected{{end}}>admin — {{t "full control"}}</option>
+          </select>
+          <button class="btn sm">{{t "Change"}}</button>
+        </form>
+      </td>
+      <td>{{dt .Created}}</td>
+      <td>{{if .LastLogin.IsZero}}<span class="muted">{{t "never"}}</span>{{else}}{{dt .LastLogin}}{{end}}</td>
+      <td class="nowrap">
+        <form method="post" action="/users/{{.Name}}/password" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn sm">{{t "Reset password"}}</button></form>
+        {{if ne .Name $.User.Name}}<form method="post" action="/users/{{.Name}}/delete" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn sm danger">{{t "Delete"}}</button></form>{{end}}
+      </td>
+    </tr>{{end}}
+    </tbody>
+  </table>
+</div>
+<form class="card narrow" method="post" action="/users">
+  <h2>{{t "New user"}}</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>{{t "Username"}}<input name="name" required pattern="[a-z0-9][a-z0-9._\-]{1,31}" placeholder="jsmith"></label>
+  <label>{{t "Role"}}<select name="role"><option value="viewer">viewer — {{t "read only"}}</option><option value="admin">admin — {{t "full control"}}</option></select></label>
+  <label>{{t "Password"}}<input name="password" type="password" autocomplete="new-password" minlength="10" placeholder="{{t "empty — generate"}}"></label>
+  <button class="btn primary">{{t "Create"}}</button>
+  <p class="muted small">{{t "viewer sees everything except users and audit and changes nothing. admin changes rules, sites, blocks and users."}}</p>
+</form>
+{{end}}

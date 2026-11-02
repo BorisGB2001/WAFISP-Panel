@@ -1,0 +1,7 @@
+bin/
+secrets/
+ops/
+*.token
+*.key
+*.pem
+.DS_Store

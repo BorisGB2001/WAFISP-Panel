@@ -1,0 +1,51 @@
+{{define "content"}}
+{{$d := .Data}}{{$a := $d.A}}
+<div class="card verdict">
+  <div class="urlline"><span class="mono"><b>{{$d.IP}}</b></span> {{$d.Country}}
+    {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}
+    {{if $d.Allowed}}<span class="badge warn">{{t "on the allow list"}}</span>{{end}}</div>
+  <dl class="kv">
+    <dt>{{t "Events"}}</dt><dd><a href="/attacks?ip={{$d.IP}}&amp;period={{$d.F.Period}}">{{$a.Total}}</a> · {{t "blocked %d, passed %d" $a.Denied $a.Passed}}</dd>
+    <dt>{{t "Seen"}}</dt><dd>{{dt $d.First}} — {{dt $d.Last}}</dd>
+    {{if $d.IsBlocked}}<dt>{{t "Block"}}</dt><dd>{{$d.Blocked.Reason}} · {{$d.Blocked.By}} · {{t "until"}} {{if $d.Blocked.Expires.IsZero}}{{t "unblocked by hand"}}{{else}}{{dt $d.Blocked.Expires}}{{end}} · {{join $d.Blocked.Backends ", "}}</dd>{{end}}
+  </dl>
+</div>
+
+<div class="grid2">
+  <section class="card"><h3>{{t "Sites"}}</h3>{{template "toplist" $d.Sites}}</section>
+  <section class="card"><h3>{{t "Rules"}}</h3>
+    {{if $d.Rules}}<ol class="top">{{$max := (index $d.Rules 0).Count}}{{range $d.Rules}}<li><span class="k"><span class="mono">{{.Key}}</span> <small class="muted">{{cut (index $d.RuleMsg .Key) 60}}</small></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+  </section>
+  <section class="card"><h3>{{t "Paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card">
+    <h3>{{t "Latest events"}}</h3>
+    <table class="compact"><tbody>{{range $d.Recent}}<tr><td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td><td class="url">{{.Site}} {{cut .Path 50}}</td><td>{{template "verdict" .Denied}}</td></tr>{{else}}<tr><td class="muted">{{t "No events"}}</td></tr>{{end}}</tbody></table>
+  </section>
+</div>
+
+{{if .IsAdmin}}
+<div class="grid2">
+  <section class="card">
+    {{if $d.IsBlocked}}
+    <h2>{{t "Unblock"}}</h2>
+    <form method="post" action="/blocks/unblock" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="ip" value="{{$d.Blocked.IP}}"><input type="hidden" name="back" value="/ip/{{$d.IP}}">
+      <button class="btn">{{t "Unblock %s" $d.Blocked.IP}}</button>
+    </form>
+    {{else}}
+    <h2>{{t "Block"}}</h2>
+    {{template "blockform" (dict "CSRF" .CSRF "IP" $d.IP "Back" (print "/ip/" $d.IP) "Backends" $d.Backends "Default" $d.DefaultBackends "TTLs" $d.TTLs)}}
+    {{end}}
+  </section>
+  <section class="card">
+    <h2>{{t "Allow list"}}</h2>
+    {{if $d.Allowed}}
+    <form method="post" action="/allow/remove" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="ip" value="{{$d.IP}}"><input type="hidden" name="back" value="/ip/{{$d.IP}}">
+      <button class="btn">{{t "Inspect %s again" $d.IP}}</button>
+    </form>
+    {{else}}{{template "allowform" (dict "CSRF" .CSRF "IP" $d.IP "Back" (print "/ip/" $d.IP) "TTLs" $d.TTLs)}}{{end}}
+  </section>
+</div>
+{{end}}
+{{end}}

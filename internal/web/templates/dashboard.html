@@ -1,0 +1,51 @@
+{{define "content"}}
+{{$d := .Data}}{{$a := $d.A}}
+<form class="filters card inlinefilters" method="get" action="/">
+  {{template "periods" $d}}
+  <div class="actions"><button class="btn">{{t "Show"}}</button></div>
+</form>
+
+{{if $d.PolicyErr}}<div class="note err">{{t "Panel rules: %s" $d.PolicyErr}}{{if .IsAdmin}} <form class="inline" method="post" action="/policy/apply"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="back" value="/"><button class="btn">{{t "Apply again"}}</button></form>{{end}}</div>{{end}}
+{{range $b, $e := $d.BlockErrs}}<div class="note err">{{t "Blocking backend %s: %s" $b $e}}</div>{{end}}
+
+<div class="tiles">
+  <div class="tile"><span>{{t "Events"}}</span><b title="{{$a.Total}}">{{num (int64 $a.Total)}}</b><small><a href="/attacks?{{$d.F.Query 0}}">{{t "open the log"}} →</a></small></div>
+  <div class="tile"><span>{{t "Blocked"}}</span><b>{{num (int64 $a.Denied)}}</b><small>{{pct $a.Denied $a.Total}}%</small></div>
+  <div class="tile"><span>{{t "Passed"}}</span><b class="{{if $a.Passed}}warn{{end}}">{{num (int64 $a.Passed)}}</b><small>{{if $a.Passed}}<a href="/attacks?{{$d.F.With "action" "pass"}}">{{t "DetectionOnly or below the threshold"}}</a>{{end}}</small></div>
+  <div class="tile"><span>{{t "Attacking addresses"}}</span><b>{{$d.UniqueIPs}}</b><small>{{t "sites hit: %d" $d.SitesHit}}</small></div>
+  <div class="tile"><span>{{t "Blocked by the panel"}}</span><b>{{$d.Blocks}}</b><small><a href="/blocks">{{t "blocking"}} →</a> · {{t "exclusions: %d" $d.Exclusions}}</small></div>
+</div>
+
+<section class="card">
+  <div class="grid2 wide-left">
+    <div>
+      <div class="cardhead"><h3>{{t "Events over time"}}</h3><div class="chartlegend"><span class="s1">{{t "blocked"}}</span><span class="s3">{{t "passed"}}</span></div></div>
+      {{$d.Chart}}
+    </div>
+    <div>
+      <h3>{{t "Attack classes"}}</h3>
+      <div class="donutbox">{{$d.CatsDonut}}
+        <ul class="legend">{{range $d.CatSlices}}<li><i class="s{{.Slot}}"></i><span title="{{.Label}}">{{tx .Label}}</span><b>{{.Value}}</b><small>{{.Pct}}%</small></li>{{else}}<li class="muted">{{t "No data"}}</li>{{end}}</ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="grid2">
+  <section class="card"><div class="cardhead"><h3>{{t "Top attackers"}}</h3><a href="/analysis?{{$d.F.Query 0}}">{{t "analysis"}} →</a></div>{{template "iplist" $d.IPs}}</section>
+  <section class="card"><h3>{{t "Top sites"}}</h3>
+    {{if $d.Sites}}<ol class="top">{{$max := (index $d.Sites 0).Count}}{{range $d.Sites}}<li><span class="k"><a href="/attacks?{{$d.F.With "site" .Key}}">{{.Key}}</a></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+  </section>
+  <section class="card"><h3>{{t "Top rules"}}</h3>{{template "rulelist" $d.Rules}}</section>
+  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card"><h3>{{t "Countries"}}</h3>{{template "toplist" $d.Countries}}</section>
+  <section class="card">
+    <h3>{{t "Audit logs"}}</h3>
+    <p class="muted small">{{t "%d events in the store since %s." $d.Stored (dt $d.Oldest)}}</p>
+    <div class="scroll"><table class="compact">
+      <thead><tr><th>{{t "Site"}}</th><th>{{t "Size"}}</th><th>{{t "Read since start"}}</th><th>{{t "Last event"}}</th></tr></thead>
+      <tbody>{{range $d.Files}}<tr class="{{if .Err}}warnrow{{end}}"><td>{{.Site}}</td><td>{{num .Size}}</td><td>{{.Events}}</td><td>{{if .Err}}<em class="bad" title="{{.Err}}">{{t "error"}}</em>{{else}}{{ago .LastSeen}}{{end}}</td></tr>{{end}}</tbody>
+    </table></div>
+  </section>
+</div>
+{{end}}

@@ -1,0 +1,29 @@
+# boris.gb 2026-11-02 09:57 - systemd unit of WAFISP Panel (audit logs, blocking, exclusions, alerts, SIEM, web UI)
+# Runs as root: it reads every site's audit log, manages ipset/iptables, writes its own ModSecurity rules,
+# tests and reloads nginx and calls mgrctl. The rest of the system stays read-only for it.
+[Unit]
+Description=WAFISP Panel: ModSecurity analysis and control for ISPmanager
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/wafisp -config /etc/wafisp/wafisp.yaml
+Restart=always
+RestartSec=5
+StateDirectory=wafisp
+StateDirectoryMode=0700
+Nice=10
+MemoryMax=512M
+ProtectSystem=full
+# boris.gb 2026-11-02 11:20 - the rules dir moved out of /etc/modsecurity, which ISPmanager owns
+ReadWritePaths=/etc/wafisp/modsec /usr/local/mgr5/var /usr/local/mgr5/tmp
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

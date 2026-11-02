@@ -1,0 +1,56 @@
+{{define "content"}}
+{{$d := .Data}}{{$s := $d.S}}
+<section class="card">
+  <p class="muted small">{{t "The auto-ban blocks an address that keeps attacking: too many denied requests within a window, or one denied request of a dangerous class. Every new offence of the same address blocks it for longer. The protected list and the allow list are never banned. In dry-run mode it only records whom it would block — start there and check the list below."}}</p>
+  <div class="badges">
+    {{if not $s.Enabled}}<span class="badge">{{t "off"}}</span>{{else if $s.DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "blocking"}}</span>{{end}}
+  </div>
+</section>
+
+{{if .IsAdmin}}
+<form class="card stack" method="post" action="/autoban">
+  <h2>{{t "Settings"}}</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label class="radio"><input type="checkbox" name="enabled" {{if $s.Enabled}}checked{{end}}> <b>{{t "Auto-ban on"}}</b></label>
+  <label class="radio"><input type="checkbox" name="dry_run" {{if $s.DryRun}}checked{{end}}> <b>{{t "Dry run"}}</b> — {{t "only record whom it would block"}}</label>
+  <div class="grid2">
+    <label>{{t "Denied requests from one address"}}<input type="number" name="threshold" min="2" max="10000" value="{{$s.Threshold}}"></label>
+    <label>{{t "within, minutes"}}<input type="number" name="window" min="1" max="1440" value="{{$d.WindowMin}}"></label>
+  </div>
+  <fieldset class="modes"><legend>{{t "Ban at once on one denied request of these classes"}}</legend>
+    {{range $d.Cats}}<label class="radio"><input type="checkbox" name="instant" value="{{.Code}}" {{if has $s.Instant .Code}}checked{{end}}> {{tx .Name}}</label> {{end}}
+    <label>{{t "with an anomaly score of at least"}}<input type="number" name="instant_score" min="0" value="{{$s.InstantScore}}" style="width:6em"></label>
+  </fieldset>
+  <fieldset class="modes"><legend>{{t "Block duration by offence"}}</legend>
+    <div class="grid3">
+    {{range $i, $k := $d.DurKeys}}
+      <label>{{if eq $i 0}}{{t "1st"}}{{else if eq $i 1}}{{t "2nd"}}{{else}}{{t "3rd and later"}}{{end}}
+        <select name="duration">{{if gt $i 0}}<option value="">—</option>{{end}}{{range $d.Durations}}<option value="{{.Key}}" {{if eq .Key $k}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+    {{end}}
+    </div>
+    <p class="muted small">{{t "Offences count for 90 days."}}</p>
+  </fieldset>
+  <fieldset class="modes"><legend>{{t "How to block"}}</legend>
+    {{range $d.Backends}}<label class="radio"><input type="checkbox" name="backend" value="{{.}}" {{if has $s.Backends .}}checked{{end}}> <b>{{.}}</b> — {{template "backendhint" .}}</label>{{end}}
+  </fieldset>
+  <div class="actions"><button class="btn primary">{{t "Save"}}</button></div>
+</form>
+{{end}}
+
+<section class="card">
+  <h2>{{t "Decisions"}}</h2>
+  {{if $d.Decisions}}
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "Time"}}</th><th>{{t "Address"}}</th><th>{{t "Site"}}</th><th>{{t "Why"}}</th><th>{{t "Offence"}}</th><th>{{t "Result"}}</th></tr></thead>
+    <tbody>{{range $d.Decisions}}<tr class="{{if .DryRun}}off{{end}}">
+      <td class="nowrap">{{dt .At}}</td>
+      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a></td>
+      <td>{{.Site}}</td>
+      <td class="small">{{.Reason}}</td>
+      <td>#{{.Offence}} · {{if eq .Duration 0}}{{t "Permanent"}}{{else}}{{.Duration}}{{end}}</td>
+      <td>{{if eq .Result "blocked"}}<span class="badge good">{{t "blocked"}}</span>{{else if eq .Result "would block"}}<span class="badge warn">{{t "would block"}}</span>{{else}}<span class="badge" title="{{.Result}}">{{cut .Result 40}}</span>{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="muted">{{t "No decisions yet."}}</p>{{end}}
+</section>
+{{end}}

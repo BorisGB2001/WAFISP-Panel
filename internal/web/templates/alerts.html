@@ -1,0 +1,22 @@
+{{define "content"}}
+<div class="card">
+  <p class="muted">{{t "The latest 300 alerts. Delivery status is updated after every attempt to send."}}</p>
+  {{template "alerttable" .Data}}
+</div>
+{{end}}
+
+{{define "alerttable"}}
+{{if .}}
+<table>
+  <thead><tr><th>{{t "Time"}}</th><th>{{t "Rule"}}</th><th>{{t "Alert"}}</th><th>{{t "Delivery"}}</th></tr></thead>
+  <tbody>
+  {{range .}}<tr>
+    <td class="nowrap">{{dt .Time}}</td>
+    <td><span class="badge {{sevclass .Severity}}">{{.Severity}}</span> {{.Rule}}</td>
+    <td><details><summary>{{.Title}}</summary><pre>{{.Text}}</pre></details></td>
+    <td>{{range $ch, $st := .Delivery}}<span class="badge {{deliveryclass $st}}" title="{{$st}}">{{if eq $st "ok"}}✓{{else if eq $st "queued"}}…{{else}}✕{{end}} {{$ch}}</span> {{end}}</td>
+  </tr>{{end}}
+  </tbody>
+</table>
+{{else}}<p class="muted">{{t "No alerts yet."}}</p>{{end}}
+{{end}}

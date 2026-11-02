@@ -1,0 +1,49 @@
+{{define "content"}}
+{{$d := .Data}}{{$f := $d.F}}
+<p><a href="/attacks?{{$d.Q}}">← {{t "Attack log"}}</a></p>
+
+<form class="filters card inlinefilters" method="get" action="/massban">
+  {{range $k, $v := (dict "rule" $f.Rule "cat" $f.Cat "site" $f.Site "path" $f.Path "var" $f.Var "ip" $f.IP "action" $f.Action)}}{{if $v}}<input type="hidden" name="{{$k}}" value="{{$v}}">{{end}}{{end}}
+  {{template "periods" $d}}
+  <div class="actions"><button class="btn">{{t "Show"}}</button></div>
+</form>
+
+<section class="card">
+  <h2>{{t "Everyone who used this attack"}}</h2>
+  <p><b>{{$d.Desc}}</b>{{if $d.RuleMsg}} — {{$d.RuleMsg}}{{end}}</p>
+  <p class="muted small">{{t "Addresses whose requests match this attack in the period. Pick whom to block; already blocked, allowed, private and protected addresses are skipped. Addresses whose requests all passed are not preselected."}}</p>
+  {{if $d.ScanRule}}<div class="note">{{t "This rule fires almost only on scanners: banning everyone who triggered it is usually safe."}}</div>{{end}}
+  {{if $d.Warn}}<div class="note err">⚠ {{t "Most of these addresses touched at most 3 paths — they look like ordinary visitors, not scanners. This may be a false positive: check the analysis and the events before banning, and prefer an exclusion."}} <a href="/analysis?{{$d.Q}}">{{t "analysis"}} →</a></div>{{end}}
+  {{if $d.TooMany}}<div class="note err">{{t "At most %d addresses at once; narrow the filter" $d.Max}}</div>{{end}}
+</section>
+
+{{if $d.Rows}}
+<form class="card stack" method="post" action="/massban?{{$d.Q}}">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="cardhead"><h2>{{t "Addresses: %d" (len $d.Rows)}}</h2><span class="muted small">{{t "can be blocked: %d · look like visitors: %d" $d.Selectable $d.Visitors}}</span></div>
+  <div class="scroll"><table class="compact">
+    <thead><tr><th></th><th>IP</th><th>{{t "Events"}}</th><th>{{t "Blocked"}}</th><th title="{{t "distinct paths the address touched in the period"}}">{{t "Paths"}}</th><th>{{t "Sites"}}</th><th>{{t "Last"}}</th><th></th></tr></thead>
+    <tbody>
+    {{range $d.Rows}}<tr class="{{if .Skip}}off{{else if .Visitor}}warnrow{{end}}">
+      <td>{{if not .Skip}}<input type="checkbox" name="ip" value="{{.IP}}" {{if .Selected}}checked{{end}} aria-label="{{.IP}}">{{end}}</td>
+      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a> <small class="muted">{{.Country}}</small></td>
+      <td>{{.Events}}</td><td>{{.Denied}}</td>
+      <td>{{if .Visitor}}<span class="badge warn" title="{{t "may be a real visitor"}}">{{.Paths}}</span>{{else}}{{.Paths}}+{{end}}</td>
+      <td class="small">{{join .Sites ", "}}</td>
+      <td class="nowrap">{{ago .Last}}</td>
+      <td class="small muted">{{if .Skip}}{{tx .Skip}}{{end}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  <div class="grid2">
+    <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required value="{{$d.Reason}}"></label>
+    <label>{{t "Duration"}}<select name="ttl">{{range $d.TTLs}}<option value="{{.Key}}" {{if eq .Key "7d"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  </div>
+  <fieldset class="modes"><legend>{{t "How to block"}}</legend>
+    {{$def := $d.DefaultBackends}}{{range $d.Backends}}<label class="radio"><input type="checkbox" name="backend" value="{{.}}" {{if has $def .}}checked{{end}}> <b>{{.}}</b> — {{template "backendhint" .}}</label>{{end}}
+  </fieldset>
+  <label class="radio"><input type="checkbox" name="confirm" value="yes" required> {{t "I checked the list: block the ticked addresses"}}</label>
+  <div class="actions"><button class="btn danger">{{t "Ban the ticked addresses"}}</button></div>
+</form>
+{{else}}<section class="card"><p class="muted">{{t "No addresses match."}}</p></section>{{end}}
+{{end}}

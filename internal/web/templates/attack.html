@@ -1,0 +1,73 @@
+{{define "content"}}
+{{$d := .Data}}{{$e := $d.E}}
+<p><a href="/attacks">← {{t "Attack log"}}</a></p>
+{{if $e}}
+<div class="card verdict">
+  <div class="stamp {{if $e.Denied}}deny{{else}}pass{{end}}">{{if $e.Denied}}{{t "Deny"}}{{else}}{{t "Pass"}}{{end}}</div>
+  <div class="urlline"><span class="badge bad">{{cat $e.Category}}</span><span>{{$d.Scheme}}://{{$e.Host}}{{$e.URI}}</span></div>
+  <dl class="kv">
+    <dt>{{t "Source"}}</dt><dd class="mono"><a href="/ip/{{$e.SrcIP}}">{{$e.SrcIP}}</a>:{{$e.SrcPort}} {{$e.Country}}
+      {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked: %s" $d.Blocked.Reason}}</span>{{end}}
+      {{if $d.Allowed}}<span class="badge warn">{{t "on the allow list"}}</span>{{end}}</dd>
+    <dt>{{t "Site"}}</dt><dd><a href="/attacks?site={{$e.Site}}">{{$e.Site}}</a> · WAF {{if $d.SiteMode}}<b>{{$d.SiteMode}}</b> ({{t "panel override"}}){{else}}{{or $d.SiteWAF "—"}}{{end}}</dd>
+    <dt>{{t "Anomaly score"}}</dt><dd>{{template "risk" $e.Score}} · {{t "response %d" $e.Status}}</dd>
+    <dt>{{t "Time"}}</dt><dd>{{dt $e.Time}}</dd>
+    <dt>User-Agent</dt><dd class="small">{{$e.UserAgent}}</dd>
+    <dt>ID</dt><dd class="mono">{{$e.ID}}</dd>
+  </dl>
+</div>
+
+<section class="card">
+  <h2>{{t "Matched rules"}}</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "Rule"}}</th><th>{{t "Message"}}</th><th>{{t "Variable and data"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <tbody>
+    {{range $e.Rules}}<tr class="{{if .Denied}}warnrow{{end}}">
+      <td class="mono nowrap"><a href="/attacks?rule={{.ID}}&amp;period=7d">{{.ID}}</a>{{if .Denied}} <span class="badge bad">{{t "denied"}}</span>{{end}}<br><small class="muted">{{if .Severity}}sev {{.Severity}}{{end}}{{if .Phase}} · phase {{.Phase}}{{end}}</small></td>
+      <td>{{.Msg}}<br><small class="muted">{{range .Tags}}{{if hasPrefix . "attack-"}}{{.}} {{end}}{{end}}</small></td>
+      <td class="small">{{if .Var}}<span class="mono">{{.Var}}</span><br>{{end}}<code class="hl">{{cut .Data 300}}</code></td>
+      {{if $.IsAdmin}}<td class="nowrap">{{if not (evaluation .ID)}}
+        <a class="btn" href="/exclusions?site={{$e.Site}}&amp;path={{$e.Path}}&amp;rule={{.ID}}&amp;var={{.Var}}&amp;reason={{(print "false positive on " $e.Site $e.Path)}}">{{t "Exclude…"}}</a>
+        <a class="btn danger" href="/massban?rule={{.ID}}&amp;period=7d" title="{{t "Ban everyone who used this attack (rule %s)" .ID}}">⛔ {{t "Ban everyone…"}}</a>{{end}}</td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  {{if .IsAdmin}}<p class="muted small">{{t "“Exclude…” opens the exclusion form for this rule, site, path and variable. Check that the request is legitimate first."}}</p>{{end}}
+</section>
+
+<div class="card">
+  <div class="cardhead">
+    <h2>{{t "Request"}}</h2>
+    <button type="button" class="btn" data-curl="raw-req" data-scheme="{{$d.Scheme}}" data-copied="{{t "Copied"}}">{{t "Copy as cURL"}}</button>
+  </div>
+  <pre class="http">{{$d.ReqHTML}}</pre>
+  <pre id="raw-req" hidden>{{$d.ReqRaw}}</pre>
+</div>
+
+{{if .IsAdmin}}
+<div class="grid2">
+  <section class="card">
+    <h2>{{t "Block %s" $e.SrcIP}}</h2>
+    {{if $d.IsBlocked}}<p>{{t "Already blocked by %s until %s via %s." $d.Blocked.By (dt $d.Blocked.Expires) (join $d.Blocked.Backends ", ")}}</p>{{end}}
+    {{template "blockform" (dict "CSRF" .CSRF "IP" $e.SrcIP "Site" $e.Site "Back" (print "/attacks/" $e.ID) "Backends" $d.Backends "Default" $d.DefaultBackends "TTLs" $d.TTLs)}}
+  </section>
+  <section class="card">
+    <h2>{{t "Let it through"}}</h2>
+    <p class="muted small">{{t "If this request is legitimate, exclude the rule that fired (button in the table above) — that keeps the rest of the protection. Allow the whole address only for trusted sources."}}</p>
+    {{if not $d.Allowed}}{{template "allowform" (dict "CSRF" .CSRF "IP" $e.SrcIP "Back" (print "/attacks/" $e.ID) "TTLs" $d.TTLs)}}{{end}}
+  </section>
+</div>
+{{with $e.RuleID}}
+<section class="card">
+  <h2>{{t "Ban everyone who used this attack"}}</h2>
+  <p class="muted small">{{t "Every address that triggered rule %s in the last 7 days, within the scope you pick. The next page lists them before anything is blocked." .}}</p>
+  <div class="actions">
+    <a class="btn danger" href="/massban?rule={{.}}&amp;period=7d">⛔ {{t "rule %s on every site" .}}</a>
+    <a class="btn danger" href="/massban?rule={{.}}&amp;site={{$e.Site}}&amp;period=7d">⛔ {{t "on %s" $e.Site}}</a>
+    <a class="btn danger" href="/massban?rule={{.}}&amp;site={{$e.Site}}&amp;path={{$e.Path}}&amp;period=7d">⛔ {{t "on %s%s" $e.Site $e.Path}}</a>
+  </div>
+</section>
+{{end}}
+{{end}}
+{{end}}
+{{end}}

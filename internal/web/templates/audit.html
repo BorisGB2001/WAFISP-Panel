@@ -1,0 +1,15 @@
+{{define "content"}}
+<div class="card">
+  <p class="muted">{{t "The latest 1000 actions in the panel. The full log is audit.log in the service data directory."}}</p>
+  {{if .Data}}
+  <table>
+    <thead><tr><th>{{t "Time"}}</th><th>{{t "User"}}</th><th>IP</th><th>{{t "Action"}}</th><th>{{t "Details"}}</th></tr></thead>
+    <tbody>
+    {{range .Data}}<tr class="{{if or (eq .Action "login.failed") (eq .Action "login.blocked")}}warnrow{{end}}">
+      <td class="nowrap">{{dt .Time}}</td><td>{{.User}}</td><td class="mono">{{.IP}}</td><td class="mono">{{.Action}}</td><td class="small">{{.Detail}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table>
+  {{else}}<p class="muted">{{t "No entries."}}</p>{{end}}
+</div>
+{{end}}

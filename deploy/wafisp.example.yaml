@@ -1,0 +1,118 @@
+# boris.gb 2026-11-02 09:42 - example config of WAFISP Panel: ModSecurity audit logs of an ISPmanager host,
+# blocking backends, alert channels, alert rules, SIEM forwarding and the web panel.
+#
+# Secrets live in separate files (*_file, mode 0600); relative paths are resolved
+# from the directory of this file. ${ENV_VAR} references are expanded.
+
+# Language of alert texts: en (default) or ru. The web UI has its own switch.
+language: en
+
+# Users, session key, event store, policy, blocks, alert history, audit log.
+data_dir: /var/lib/wafisp
+retention: 720h # events are kept for 30 days
+
+# MaxMind-format database for countries; ISPmanager ships GeoLite2-Country.
+geoip_db: /usr/share/GeoIP/GeoLite2-Country.mmdb
+
+http:
+  listen: 127.0.0.1:9189 # /healthz and /metrics (Prometheus)
+
+web:
+  # Listen only on internal addresses (office network, VPN).
+  listen: ["10.0.0.5:12443"]
+  # Without tls_cert/tls_key a self-signed certificate is created in data_dir/tls.
+  # tls_cert: /var/www/httpd-cert/panel.example.com.crt
+  # tls_key: /var/www/httpd-cert/panel.example.com.key
+  session_ttl: 12h
+
+modsecurity:
+  audit_glob: /var/www/httpd-logs/*.audit.log # one Serial audit log per site
+  audit_suffix: .audit.log
+  poll_interval: 2s
+  # The panel writes its rules here. nginx loads before.conf ahead of the CRS
+  # rules and after.conf behind them (see docs/DEPLOYMENT.md).
+  rules_dir: /etc/wafisp/modsec
+
+nginx:
+  vhosts_dir: /etc/nginx/vhosts
+  resources_dir: /etc/nginx/vhosts-resources
+  test: [nginx, -t, -q]
+  reload: [systemctl, reload, nginx]
+  # Every reload starts workers that load all the rules again; wait while
+  # less memory than this is available.
+  min_avail_mb: 1024
+
+block:
+  # ipset: dropped by the firewall on the web ports, instant, no reload
+  # modsec: 403 from ModSecurity, logged in the site's audit log, reloads nginx
+  # ispmgr: a deny rule in ISPmanager's firewall, visible in its panel
+  backends: [ipset, modsec, ispmgr]
+  default: [ipset]
+  ipset_name: wafisp
+  ports: "80,443"
+  mgrctl: /usr/local/mgr5/sbin/mgrctl
+  # Never blocked: the host, the office, the VPN.
+  protected: [10.0.0.0/8, 100.64.0.0/10, 192.0.2.10]
+
+channels:
+  - name: tg-soc
+    type: telegram
+    telegram:
+      bot_token_file: secrets/telegram.token
+      chat_id: "-1001234567890"
+
+  - name: mail-soc
+    type: email
+    email:
+      host: smtp.example.com
+      port: 587
+      tls: starttls
+      username: waf-alerts@example.com
+      password_file: secrets/smtp.password
+      from: waf-alerts@example.com
+      to: [soc@example.com]
+
+  - name: hook
+    type: webhook
+    webhook:
+      url: https://hooks.example.com/waf
+      format: json
+      secret_file: secrets/webhook.secret # adds X-WAFISP-Signature: sha256=<hmac>
+
+# Rules saved in the web UI (data_dir/rules.yaml) take precedence over these.
+rules:
+  # A burst of attacks from one address.
+  - name: burst-from-ip
+    severity: warning
+    threshold: 20
+    window: 5m
+    group_by: src_ip # src_ip | host | site | none
+    cooldown: 30m
+    channels: [tg-soc]
+
+  # Dangerous classes, even a single request.
+  - name: critical-attack
+    severity: critical
+    categories: [rce, php, java, webshell]
+    min_score: 10
+    threshold: 1
+    cooldown: 15m
+    channels: [tg-soc, mail-soc, hook]
+
+  # An attack got through (site in DetectionOnly, or below the threshold).
+  - name: attack-passed
+    severity: warning
+    actions: [pass]
+    min_score: 5
+    threshold: 1
+    group_by: site
+    cooldown: 1h
+    channels: [tg-soc]
+
+siem:
+  # Wazuh decodes JSON only without a syslog header.
+  - name: wazuh
+    network: tcp
+    address: siem.example.com:514
+    format: json
+    header: none

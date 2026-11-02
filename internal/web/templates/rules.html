@@ -1,0 +1,64 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="card">
+  <p class="muted">{{t "Rules turn attacks into alerts. Every event goes to the SIEM regardless of the rules."}}</p>
+  {{if $d.Rules}}
+  <div class="scroll">
+  <table>
+    <thead><tr><th>{{t "Rule"}}</th><th>{{t "Severity"}}</th><th>{{t "Conditions"}}</th><th>{{t "Threshold"}}</th><th>{{t "Group by"}}</th><th>{{t "Cooldown"}}</th><th>{{t "Channels"}}</th></tr></thead>
+    <tbody>
+    {{range $d.Rules}}<tr class="{{if .Disabled}}off{{end}}">
+      <td><b>{{.Name}}</b>{{if .Disabled}} <span class="badge">{{t "disabled"}}</span>{{end}}</td>
+      <td><span class="badge {{sevclass .Severity}}">{{.Severity}}</span></td>
+      <td class="small">
+        {{if .Categories}}{{t "classes"}}: {{range $i, $c := .Categories}}{{if $i}}, {{end}}{{cat $c}}{{end}}<br>{{end}}
+        {{if .Actions}}{{t "action"}}: {{join .Actions ", "}}<br>{{end}}
+        {{if .Hosts}}{{t "sites"}}: {{join .Hosts ", "}}<br>{{end}}
+        {{if .Sites}}{{t "ISPmanager sites"}}: {{join .Sites ", "}}<br>{{end}}
+        {{if .MinRisk}}{{t "risk ≥ %d" .MinRisk}}<br>{{end}}
+        {{if .MinScore}}{{t "score ≥ %d" .MinScore}}<br>{{end}}
+        {{if not (or .Categories .Actions .Hosts .Sites .MinRisk .MinScore)}}<span class="muted">{{t "any attack"}}</span>{{end}}
+      </td>
+      <td>{{if eq .Threshold 1}}{{t "every event"}}{{else}}{{t "%d in %s" .Threshold .Window}}{{end}}</td>
+      <td>{{.GroupBy}}</td>
+      <td>{{.Cooldown}}</td>
+      <td>{{join .Channels ", "}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}<p class="muted">{{t "No rules — no alerts are sent."}}</p>{{end}}
+</div>
+
+{{if .IsAdmin}}
+<div class="grid2 wide-left">
+  <form class="card" method="post" action="/rules">
+    <h2>{{t "Rule editor"}}</h2>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <textarea name="yaml" rows="24" spellcheck="false" class="code">{{$d.YAML}}</textarea>
+    <div class="actions"><button class="btn primary">{{t "Validate, save and apply"}}</button></div>
+    <p class="muted small">{{t "Rules are validated before saving and applied without restarting the service. Threshold and cooldown counters start over."}}</p>
+  </form>
+  <div class="card ref">
+    <h2>{{t "Reference"}}</h2>
+    <dl class="kv small">
+      <dt>name</dt><dd>{{t "unique name"}}</dd>
+      <dt>severity</dt><dd>info · warning · critical</dd>
+      <dt>disabled</dt><dd>{{t "true — the rule is off"}}</dd>
+      <dt>categories</dt><dd>{{t "attack classes, empty — all"}}</dd>
+      <dt>sites</dt><dd>{{t "ISPmanager site names"}}</dd>
+      <dt>min_score</dt><dd>{{t "minimal anomaly score"}}</dd>
+      <dt>actions</dt><dd>{{t "[deny], [pass] or both"}}</dd>
+      <dt>hosts</dt><dd>{{t "sites, “*.example.com” allowed"}}</dd>
+      <dt>min_risk</dt><dd>{{t "minimal risk (1–3): 1 below 5, 2 from 5, 3 from 15"}}</dd>
+      <dt>threshold / window</dt><dd>{{t "N events per window (e.g. 20 and 5m); 1 — every event"}}</dd>
+      <dt>group_by</dt><dd>src_ip · host · site · none</dd>
+      <dt>cooldown</dt><dd>{{t "pause between alerts of one group"}}</dd>
+      <dt>channels</dt><dd>{{range $i, $c := $d.Channels}}{{if $i}}, {{end}}{{$c.Name}}{{end}}</dd>
+    </dl>
+    <h3>{{t "Attack classes"}}</h3>
+    <ul class="types small">{{range $d.Cats}}<li><span class="mono">{{.Code}}</span> {{tx .Name}}</li>{{end}}</ul>
+  </div>
+</div>
+{{end}}
+{{end}}

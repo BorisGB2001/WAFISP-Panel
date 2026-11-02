@@ -1,0 +1,53 @@
+{{define "content"}}
+{{$d := .Data}}{{$f := $d.F}}
+<form class="filters card" method="get" action="/attacks">
+  {{template "periods" $d}}
+  <label>{{t "Site"}}<select name="site"><option value="">{{t "All"}}</option>{{range $d.Sites}}<option {{if eq . $f.Site}}selected{{end}}>{{.}}</option>{{end}}</select></label>
+  <label>IP<input name="ip" value="{{$f.IP}}" placeholder="203.0.113.5, 203.0.113.0/24, 203.0.*" class="mono"></label>
+  <label>{{t "Path contains"}}<input name="path" value="{{$f.Path}}" placeholder="/wp-login"></label>
+  <label>{{t "Rule"}}<input name="rule" value="{{$f.Rule}}" placeholder="942100" class="mono"></label>
+  <label>{{t "Variable"}}<input name="var" value="{{$f.Var}}" placeholder="ARGS:q" class="mono"></label>
+  <label>{{t "Class"}}<select name="cat"><option value="">{{t "All"}}</option>{{range $d.Cats}}<option value="{{.Code}}" {{if eq .Code $f.Cat}}selected{{end}}>{{tx .Name}}</option>{{end}}</select></label>
+  <label>{{t "Action"}}<select name="action">
+    <option value="">{{t "All"}}</option>
+    <option value="deny" {{if eq $f.Action "deny"}}selected{{end}}>{{t "Blocked"}}</option>
+    <option value="pass" {{if eq $f.Action "pass"}}selected{{end}}>{{t "Passed"}}</option>
+  </select></label>
+  <label>{{t "Score ≥"}}<input name="score" type="number" min="0" value="{{if $f.Score}}{{$f.Score}}{{end}}" style="width:6em"></label>
+  <div class="actions"><button class="btn primary">{{t "Search"}}</button><a class="btn" href="/attacks">{{t "Reset"}}</a></div>
+</form>
+
+<div class="card">
+  <div class="cardhead">
+    <h2>{{t "Found: %d" $d.Total}}</h2>
+    <div class="actions">
+      {{if and .IsAdmin (or $f.Rule $f.Cat $f.Path $f.Var)}}<a class="btn danger" href="/massban?{{$d.CSV}}" title="{{t "Block every address in this list"}}">⛔ {{t "Ban everyone in this list…"}}</a>{{end}}
+      <a class="btn" href="/attacks.csv?{{$d.CSV}}">{{t "Export CSV"}}</a>
+    </div>
+  </div>
+  {{if $d.Rows}}
+  <div class="scroll">
+  <table class="attacks">
+    <thead><tr><th>{{t "Time"}}</th><th>{{t "Source"}}</th><th>{{t "Site and path"}}</th><th>{{t "Class / rules"}}</th><th>{{t "Score"}}</th><th>{{t "Action"}}</th></tr></thead>
+    <tbody>
+    {{range $d.Rows}}<tr>
+      <td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td>
+      <td class="mono"><a href="/ip/{{.SrcIP}}" class="{{if index $d.Blocked .SrcIP}}blocked{{end}}" title="{{if index $d.Blocked .SrcIP}}{{t "blocked"}}{{else}}{{t "Everything about this address"}}{{end}}">{{.SrcIP}}</a>{{if index $d.Blocked .SrcIP}} ⛔{{end}}{{if .Country}} <small class="muted">{{.Country}}</small>{{end}}
+        {{if $.IsAdmin}}{{template "quickban" (dict "CSRF" $.CSRF "IP" .SrcIP "Site" .Site "Why" (print (cat .Category) " · " .Site .Path) "Back" (print "/attacks?" ($d.F.Query $d.F.Page)) "Backends" $d.DefaultBackends)}}{{end}}</td>
+      <td class="url"><a class="muted" href="/attacks?{{$f.With "site" .Site}}">{{.Site}}</a> <span class="mono">{{.Method}}</span> {{cut .Path 80}} <small class="muted">{{.Status}}</small></td>
+      <td><span class="atype" title="{{.Reason}}">{{cat .Category}}</span><br><small class="mono">{{range $i, $r := .Rules}}{{if lt $i 4}}<a href="/attacks?{{$f.With "rule" $r}}">{{$r}}</a> {{end}}{{end}}{{if gt (len .Rules) 4}}+{{sub (len .Rules) 4}}{{end}}</small>
+        {{if and $.IsAdmin .Top}}<a class="small" href="/massban?rule={{.Top}}&amp;period={{$f.Period}}" title="{{t "Ban everyone who used this attack (rule %s)" .Top}}">⛔ {{t "everyone"}}</a>{{end}}</td>
+      <td>{{template "risk" .Score}}</td>
+      <td>{{template "verdict" .Denied}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table>
+  </div>
+  <div class="pager">
+    {{if gt $f.Page 1}}<a class="btn" href="/attacks?{{$d.Prev}}">← {{t "Back"}}</a>{{end}}
+    <span class="muted">{{t "Page %d of %d" $f.Page $d.Pages}}</span>
+    {{if lt $f.Page $d.Pages}}<a class="btn" href="/attacks?{{$d.Next}}">{{t "Next"}} →</a>{{end}}
+  </div>
+  {{else}}<p class="muted">{{t "No events match these filters."}}</p>{{end}}
+</div>
+{{end}}

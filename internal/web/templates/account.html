@@ -1,0 +1,12 @@
+{{define "content"}}
+<form class="card narrow" method="post" action="/account/password">
+  <h2>{{t "Change password"}}</h2>
+  <p class="muted">{{t "Signed in as"}} <b>{{.User.Name}}</b> ({{.User.Role}}).</p>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>{{t "Current password"}}<input name="current" type="password" autocomplete="current-password" required></label>
+  <label>{{t "New password"}}<input name="new" type="password" autocomplete="new-password" minlength="10" required></label>
+  <label>{{t "Repeat the new password"}}<input name="repeat" type="password" autocomplete="new-password" minlength="10" required></label>
+  <button class="btn primary">{{t "Change password"}}</button>
+  <p class="muted small">{{t "At least 10 characters. Your other sessions end after the change."}}</p>
+</form>
+{{end}}

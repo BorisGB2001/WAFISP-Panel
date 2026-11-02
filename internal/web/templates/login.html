@@ -1,0 +1,12 @@
+{{define "content"}}
+<form class="login card" method="post" action="/login">
+  <div class="brand big"><span class="logo">◆</span> WAF Panel</div>
+  <p class="muted">{{t "ModSecurity panel for ISPmanager"}}</p>
+  {{if .Error}}<div class="note err">{{.Error}}</div>{{end}}
+  <input type="hidden" name="next" value="{{.Data.Next}}">
+  <label>{{t "Username"}}<input name="username" value="{{.Data.Username}}" autocomplete="username" required autofocus></label>
+  <label>{{t "Password"}}<input name="password" type="password" autocomplete="current-password" required></label>
+  <button class="btn primary">{{t "Sign in"}}</button>
+  {{template "prefs" .}}
+</form>
+{{end}}

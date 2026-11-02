@@ -1,0 +1,43 @@
+{{define "content"}}
+{{$d := .Data}}{{$p := $d.Pre}}
+<section class="card">
+  <p class="muted small">{{t "An exclusion switches CRS rules off where they break a legitimate request: for one site, a path prefix and one variable, or everywhere. Site and path exclusions are runtime rules ahead of CRS; exclusions for every site edit the loaded rules. Every change is checked with nginx -t before nginx reloads."}}</p>
+  {{if $d.List}}
+  <div class="scroll"><table>
+    <thead><tr><th>#</th><th>{{t "Where"}}</th><th>{{t "Rules / tags"}}</th><th>{{t "Variable"}}</th><th>{{t "Reason"}}</th><th>{{t "Hits since added (7 d)"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <tbody>
+    {{range $d.List}}<tr class="{{if .Disabled}}off{{end}}">
+      <td>{{.ID}}{{if .Disabled}} <span class="badge">{{t "disabled"}}</span>{{end}}</td>
+      <td>{{if .Site}}{{.Site}}{{else}}<b>{{t "all sites"}}</b>{{end}}{{if .Path}}<br><span class="mono small">{{.Path}}*</span>{{end}}</td>
+      <td class="mono">{{join .Rules ", "}}{{if .Tags}} <span class="muted">{{join .Tags ", "}}</span>{{end}}</td>
+      <td class="mono small">{{or .Target "—"}}</td>
+      <td>{{.Reason}}<br><small class="muted">{{.By}}, {{dt .At}}</small></td>
+      <td>{{index $d.Hits .ID}}</td>
+      {{if $.IsAdmin}}<td class="nowrap">
+        <form method="post" action="/exclusions/{{.ID}}/enabled" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="enabled" value="{{if .Disabled}}true{{else}}false{{end}}"><button class="btn">{{if .Disabled}}{{t "Enable"}}{{else}}{{t "Disable"}}{{end}}</button></form>
+        <form method="post" action="/exclusions/{{.ID}}/delete" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn danger">{{t "Delete"}}</button></form>
+      </td>{{end}}
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  {{else}}<p class="muted">{{t "No exclusions yet."}}</p>{{end}}
+</section>
+
+{{if .IsAdmin}}
+<form class="card stack" method="post" action="/exclusions" id="new">
+  <h2>{{t "New exclusion"}}</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="grid2">
+    <label>{{t "Site"}}<select name="site"><option value="">{{t "all sites"}}</option>{{range $d.Sites}}<option value="{{.Name}}" {{if eq .Name (index $p "site")}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label>{{t "Path starts with (optional)"}}<input name="path" value="{{index $p "path"}}" placeholder="/administrator/index.php" class="mono"></label>
+    <label>{{t "Rule ids or ranges"}}<input name="rules" value="{{index $p "rules"}}" placeholder="942100, 941100-941199" class="mono"></label>
+    <label>{{t "Or CRS tags"}}<input name="tags" value="{{index $p "tags"}}" placeholder="attack-xss" class="mono"></label>
+    <label>{{t "Only this variable (optional)"}}<input name="target" value="{{index $p "target"}}" placeholder="ARGS:jform[articletext]" class="mono"></label>
+    <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required value="{{index $p "reason"}}"></label>
+  </div>
+  <label class="radio"><input type="checkbox" name="everywhere" value="yes"> {{t "I know an exclusion without a site or path applies to every site"}}</label>
+  <p class="muted small">{{t "Keep it narrow: a site, a path and a variable. Without a variable the whole rule is off for the matching requests."}}</p>
+  <div class="actions"><button class="btn primary">{{t "Check, save and apply"}}</button></div>
+</form>
+{{end}}
+{{end}}

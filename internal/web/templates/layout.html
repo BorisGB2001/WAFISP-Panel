@@ -1,0 +1,121 @@
+{{define "layout"}}<!doctype html>
+<html lang="{{.Lang}}"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · WAFISP Panel</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body{{if not .User.Name}} class="bare"{{end}}>
+{{if .User.Name}}
+<aside class="side">
+  <a class="brand" href="/"><span class="logo">◆</span> WAFISP Panel</a>
+  <form class="search" method="get" action="/search" role="search"><input name="q" placeholder="{{t "Search IP…"}}" aria-label="{{t "Search IP…"}}" class="mono" autocomplete="off"></form>
+  <nav>
+    <a href="/" class="{{if eq .Active "dash"}}on{{end}}">{{t "Overview"}}</a>
+    <a href="/attacks" class="{{if eq .Active "attacks"}}on{{end}}">{{t "Attack log"}}</a>
+    <a href="/analysis" class="{{if eq .Active "analysis"}}on{{end}}">{{t "Analysis"}}</a>
+    <a href="/sites" class="{{if eq .Active "sites"}}on{{end}}">{{t "Sites"}}</a>
+    <a href="/blocks" class="{{if eq .Active "blocks"}}on{{end}}">{{t "Blocking"}}</a>
+    <a href="/blocked" class="sub {{if eq .Active "blocked"}}on{{end}}">{{t "Blocked list"}}{{if .BlockedCount}} <span class="count">{{.BlockedCount}}</span>{{end}}</a>
+    <a href="/autoban" class="{{if eq .Active "autoban"}}on{{end}}">{{t "Auto-ban"}}</a>
+    <a href="/exclusions" class="{{if eq .Active "exclusions"}}on{{end}}">{{t "Exclusions"}}</a>
+    <a href="/alerts" class="{{if eq .Active "alerts"}}on{{end}}">{{t "Alerts"}}</a>
+    <a href="/rules" class="{{if eq .Active "rules"}}on{{end}}">{{t "Alert rules"}}</a>
+    <a href="/channels" class="{{if eq .Active "channels"}}on{{end}}">{{t "Channels & SIEM"}}</a>
+    {{if .IsAdmin}}
+    <span class="navsep">{{t "Administration"}}</span>
+    <a href="/users" class="{{if eq .Active "users"}}on{{end}}">{{t "Users"}}</a>
+    <a href="/audit" class="{{if eq .Active "audit"}}on{{end}}">{{t "Audit"}}</a>
+    {{end}}
+  </nav>
+  <div class="me">
+    <div class="merow">
+      <a href="/account" class="who {{if eq .Active "account"}}on{{end}}">{{.User.Name}} <small>{{.User.Role}}</small></a>
+      <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="link" title="{{t "Sign out"}}">{{t "Sign out"}}</button></form>
+    </div>
+    {{template "prefs" .}}
+    <small class="ver">{{.Version}}</small>
+  </div>
+</aside>
+{{end}}
+<main>
+  {{if .User.Name}}<h1>{{.Title}}</h1>{{end}}
+  {{if .Flash}}<div class="note ok" role="status">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div class="note err" role="alert">{{.Error}}</div>{{end}}
+  {{range .Warnings}}<div class="note err" role="alert">⚠ {{.}}</div>{{end}}
+  {{template "content" .}}
+</main>
+<script src="/static/charts.js"></script>
+</body>
+</html>{{end}}
+
+{{define "prefs"}}<div class="prefs">
+  <span class="pseg" role="group" aria-label="{{t "Language"}}"><a href="/lang/en?next={{urlquery .Here}}" class="{{if eq .Lang "en"}}on{{end}}" {{if eq .Lang "en"}}aria-current="true"{{end}}>EN</a><a href="/lang/ru?next={{urlquery .Here}}" class="{{if eq .Lang "ru"}}on{{end}}" {{if eq .Lang "ru"}}aria-current="true"{{end}}>RU</a></span>
+  <span class="pseg" role="group" aria-label="{{t "Theme"}}"><a href="/theme/light?next={{urlquery .Here}}" class="{{if eq .Theme "light"}}on{{end}}" title="{{t "Light"}}" aria-label="{{t "Light"}}">☀</a><a href="/theme/system?next={{urlquery .Here}}" class="{{if eq .Theme ""}}on{{end}}" title="{{t "System"}}" aria-label="{{t "System"}}">◐</a><a href="/theme/dark?next={{urlquery .Here}}" class="{{if eq .Theme "dark"}}on{{end}}" title="{{t "Dark"}}" aria-label="{{t "Dark"}}">☾</a></span>
+</div>{{end}}
+
+
+{{define "risk"}}{{if ge . 15}}<span class="badge bad" title="{{t "anomaly score"}}">▲ {{.}}</span>{{else if ge . 5}}<span class="badge warn" title="{{t "anomaly score"}}">■ {{.}}</span>{{else}}<span class="badge info" title="{{t "anomaly score"}}">▼ {{.}}</span>{{end}}{{end}}
+{{define "verdict"}}{{if .}}<span class="badge good">✓ {{t "blocked"}}</span>{{else}}<span class="badge warn">! {{t "passed"}}</span>{{end}}{{end}}
+
+{{define "toplist"}}
+{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li><span class="k" title="{{.Key}}">{{if .Key}}{{.Key}}{{else}}—{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+{{end}}
+
+{{define "iplist"}}
+{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li class="{{if .Extra}}blocked{{end}}"><span class="k mono"><a href="/ip/{{.Key}}" {{if .Extra}}title="{{t "blocked"}}"{{end}}>{{.Key}}</a>{{if .Extra}} <span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+{{end}}
+
+{{define "rulelist"}}
+{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li><span class="k" title="{{.Extra}}"><a class="mono" href="/attacks?rule={{.Key}}">{{.Key}}</a> <small class="muted">{{cut .Extra 60}}</small></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+{{end}}
+
+{{define "periods"}}<label>{{t "Period"}}<select name="period">{{range .Periods}}<option value="{{.Key}}" {{if eq .Key $.F.Period}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>{{end}}
+
+{{/* blockform: . is a map with IP, Site, Back, Backends, Default, TTLs, CSRF */}}
+{{define "blockform"}}
+<form method="post" action="/blocks" class="stack blockform">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="back" value="{{.Back}}">
+  <input type="hidden" name="site" value="{{.Site}}">
+  <label>{{t "IP or subnet"}}<input name="ip" value="{{.IP}}" required placeholder="203.0.113.5 {{t "or"}} 203.0.113.0/24" class="mono"></label>
+  <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required placeholder="{{t "e.g. scanning for .env and wp-config"}}"></label>
+  <label>{{t "Duration"}}<select name="ttl">{{range .TTLs}}<option value="{{.Key}}" {{if eq .Key "24h"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  <fieldset class="modes"><legend>{{t "How to block"}}</legend>
+    {{$def := .Default}}{{range .Backends}}
+    <label class="radio"><input type="checkbox" name="backend" value="{{.}}" {{if has $def .}}checked{{end}}> <b>{{.}}</b> — {{template "backendhint" .}}</label>
+    {{end}}
+  </fieldset>
+  <button class="btn danger">{{t "Block"}}</button>
+</form>
+{{end}}
+
+{{define "backendhint"}}{{if eq . "ipset"}}{{t "dropped by the firewall on the web ports; instant, no reload"}}{{else if eq . "modsec"}}{{t "403 from ModSecurity, written to the site's audit log; reloads nginx; not in DetectionOnly sites"}}{{else if eq . "ispmgr"}}{{t "deny rule in ISPmanager's firewall, all ports, visible in ISPmanager"}}{{end}}{{end}}
+
+{{define "allowform"}}
+<form method="post" action="/allow" class="stack">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="back" value="{{.Back}}">
+  <label>{{t "IP or subnet"}}<input name="ip" value="{{.IP}}" required class="mono"></label>
+  <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required placeholder="{{t "e.g. office address, the editor's posts were blocked"}}"></label>
+  <label>{{t "Duration"}}<select name="ttl">{{range .TTLs}}<option value="{{.Key}}" {{if eq .Key "0"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  <p class="muted small">{{t "The WAF stops inspecting every request from this address on every site. Prefer an exclusion for one rule when you can."}}</p>
+  <button class="btn">{{t "Allow"}}</button>
+</form>
+{{end}}
+
+{{/* quickban: two buttons, a day and for good, through the default backends. */}}
+{{define "quickban"}}<details class="inline"><summary title="{{t "Block this address"}}">⛔</summary>
+  {{$q := .}}{{range $ttl := (list "24h" "0")}}<form method="post" action="/blocks" class="inline">
+    <input type="hidden" name="csrf" value="{{$q.CSRF}}"><input type="hidden" name="ip" value="{{$q.IP}}">
+    <input type="hidden" name="site" value="{{$q.Site}}"><input type="hidden" name="back" value="{{$q.Back}}">
+    <input type="hidden" name="reason" value="{{t "quick ban"}}: {{$q.Why}}"><input type="hidden" name="ttl" value="{{$ttl}}">
+    {{range $q.Backends}}<input type="hidden" name="backend" value="{{.}}">{{end}}
+    <button class="btn danger">{{if eq $ttl "0"}}{{t "for good"}}{{else}}{{t "for a day"}}{{end}}</button>
+  </form>{{end}}
+</details>{{end}}
