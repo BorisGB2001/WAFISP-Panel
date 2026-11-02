@@ -70,6 +70,8 @@ type Nginx struct {
 	MinAvailMB int `yaml:"min_avail_mb"`
 	// IncludeFile is the file that loads the panel's rules around CRS;
 	// the panel only reads it, to warn when an update removed the lines.
+	// "none" means nginx does not load the panel's rules on purpose (step 1
+	// of the rollout): no check, no warnings.
 	IncludeFile string `yaml:"include_file"`
 }
 
@@ -103,6 +105,11 @@ type Web struct {
 	SessionTTL Duration `yaml:"session_ttl"`
 	// PlainHTTP serves without TLS. Only allowed on loopback addresses.
 	PlainHTTP bool `yaml:"plain_http"`
+	// AllowFrom lists the addresses and networks the panel answers; everyone
+	// else gets 403. Empty means everyone who can reach Listen.
+	AllowFrom []string `yaml:"allow_from"`
+	// Allowed is AllowFrom parsed.
+	Allowed []netip.Prefix `yaml:"-"`
 	// DataDir is set from the top-level data_dir.
 	DataDir string `yaml:"-"`
 }
@@ -256,6 +263,18 @@ func (c *Config) finish(dir string) error {
 		if ip := net.ParseIP(host); c.Web.PlainHTTP && host != "localhost" && (ip == nil || !ip.IsLoopback()) {
 			return fmt.Errorf("web: plain_http is only allowed on a loopback listen address")
 		}
+	}
+	c.Web.Allowed = nil
+	for _, a := range c.Web.AllowFrom {
+		p, err := ParsePrefix(a)
+		if err != nil {
+			return fmt.Errorf("web: allow_from %q: %w", a, err)
+		}
+		// 10.6.0.0/14 is really 10.4.0.0/14: refuse rather than widen it silently.
+		if q, _ := netip.ParsePrefix(a); q.IsValid() && q != p {
+			return fmt.Errorf("web: allow_from %q is not a network address, did you mean %s?", a, p)
+		}
+		c.Web.Allowed = append(c.Web.Allowed, p)
 	}
 	if c.Web.SessionTTL == 0 {
 		c.Web.SessionTTL = Duration(12 * time.Hour)

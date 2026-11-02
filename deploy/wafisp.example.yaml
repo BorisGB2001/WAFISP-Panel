@@ -20,6 +20,9 @@ http:
 web:
   # Listen only on internal addresses (office network, VPN).
   listen: ["10.0.0.5:12443"]
+  # boris.gb 2026-11-02 19:12 - only these sources may open the panel, everyone else gets 403;
+  # empty or missing means everyone who can reach the listen address. Networks must be aligned (10.6.0.0/16, not 10.6.0.0/14).
+  allow_from: [10.0.0.0/24, 10.6.0.0/16, 192.0.2.10]
   # Without tls_cert/tls_key a self-signed certificate is created in data_dir/tls.
   # tls_cert: /var/www/httpd-cert/panel.example.com.crt
   # tls_key: /var/www/httpd-cert/panel.example.com.key

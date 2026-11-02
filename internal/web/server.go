@@ -187,7 +187,7 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /policy/apply", s.policyApply)
 	admin("POST /autoban", s.autobanSave)
 
-	return securityHeaders(mux)
+	return securityHeaders(s.allowFrom(mux))
 }
 
 // ListenAndServe serves every listen address until ctx ends.

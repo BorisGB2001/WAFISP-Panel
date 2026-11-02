@@ -235,7 +235,9 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 		})
 		go maintain(ctx, events, pol, ws, log)
 		go runAutoban(ctx, ban, blocks, pol, banEvents, ws, notice, log)
-		go checkHealth(ctx, cfg, pol, health, notice, log)
+		if cfg.Nginx.IncludeFile != "none" {
+			go checkHealth(ctx, cfg, pol, health, notice, log)
+		}
 	}
 
 	if cfg.HTTP.Listen != "" {
@@ -490,11 +492,15 @@ func runCheck(cfg *config.Config) error {
 	before, after := st.Files(cfg.ModSec.RulesDir)
 	fmt.Printf("panel rules dir %s: before.conf %d lines, after.conf %d lines, %d allowed, %d denied, %d exclusions\n",
 		cfg.ModSec.RulesDir, strings.Count(before, "\n"), strings.Count(after, "\n"), len(st.Allow), len(st.Deny), len(st.Exclusions))
-	notLoaded := false
-	for _, p := range pol.CheckInclude(cfg.Nginx.IncludeFile) {
-		if !strings.Contains(p, "is missing") {
-			fmt.Println("WARNING:", p)
-			notLoaded = true
+	notLoaded := cfg.Nginx.IncludeFile == "none"
+	if notLoaded {
+		fmt.Println("nginx include: none (nginx does not load the panel's rules)")
+	} else {
+		for _, p := range pol.CheckInclude(cfg.Nginx.IncludeFile) {
+			if !strings.Contains(p, "is missing") {
+				fmt.Println("WARNING:", p)
+				notLoaded = true
+			}
 		}
 	}
 	if notLoaded {

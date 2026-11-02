@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,6 +48,8 @@ func TestRejects(t *testing.T) {
 		"unknown backend": `block: {backends: [pf]}`,
 		"default not on":  `block: {backends: [ipset], default: [modsec]}`,
 		"bad protected":   `block: {protected: [nonsense]}`,
+		"bad allow_from":  `web: {allow_from: [nonsense]}`,
+		"unaligned net":   `web: {allow_from: [10.6.0.0/14]}`,
 	} {
 		if load(t, y) == nil {
 			t.Errorf("%s accepted", name)
@@ -60,5 +63,17 @@ func TestPlainHTTPOnlyOnLoopback(t *testing.T) {
 		if (err == nil) != ok {
 			t.Errorf("%s: err=%v", listen, err)
 		}
+	}
+}
+
+func TestAllowFrom(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "c.yaml"), []byte(`web: {allow_from: [10.0.0.0/24, 10.6.0.0/16, 10.6.250.110, "2001:db8::/32"]}`), 0o600)
+	c, err := Load(filepath.Join(dir, "c.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(c.Web.Allowed) != "[10.0.0.0/24 10.6.0.0/16 10.6.250.110/32 2001:db8::/32]" {
+		t.Errorf("allowed %v", c.Web.Allowed)
 	}
 }

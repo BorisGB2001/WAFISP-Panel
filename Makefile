@@ -3,7 +3,8 @@
 # boris.gb 2026-11-02 11:40 - 0.2.0: auto-ban with escalation and dry run, one-click ban, self-check of the nginx include, rules dir in /etc/wafisp/modsec
 # boris.gb 2026-11-02 12:00 - 0.2.1: blocked addresses in red, "Blocked" page (new time, to the allow list, unblock), IP search
 # boris.gb 2026-11-02 12:15 - 0.2.2: ban everyone who used an attack (preview, one sync for the batch)
-VERSION ?= 0.2.2
+# boris.gb 2026-11-02 19:12 - 0.2.3: web.allow_from (403 for other sources), block form layout, address page block line
+VERSION ?= 0.2.3
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test

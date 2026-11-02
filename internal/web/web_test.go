@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -524,5 +525,21 @@ func TestMassBan(t *testing.T) {
 	}
 	if _, b := get(t, ts, c, "/audit"); !strings.Contains(b, "block.mass") {
 		t.Fatal("not audited")
+	}
+}
+
+func TestAllowFrom(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	s.Cfg.Web.Allowed = []netip.Prefix{netip.MustParsePrefix("10.6.0.0/16"), netip.MustParsePrefix("10.0.0.7/32")}
+	h := s.allowFrom(ok)
+	for addr, want := range map[string]int{"10.6.250.110:5000": 200, "10.0.0.7:1": 200, "10.0.0.8:1": 403, "10.7.0.1:1": 403, "[::ffff:10.6.1.1]:1": 200, "[2001:db8::1]:1": 403} {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/login", nil)
+		r.RemoteAddr = addr
+		h.ServeHTTP(w, r)
+		if w.Code != want {
+			t.Errorf("%s: %d, want %d", addr, w.Code, want)
+		}
 	}
 }

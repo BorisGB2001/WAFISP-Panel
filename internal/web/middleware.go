@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"slices"
 	"time"
 
 	"wafisp/internal/auth"
@@ -32,6 +34,23 @@ func securityHeaders(next http.Handler) http.Handler {
 		}
 		h.Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
+	})
+}
+
+// allowFrom answers 403 to addresses outside web.allow_from, before
+// anything else, the login page included.
+func (s *Server) allowFrom(next http.Handler) http.Handler {
+	if len(s.Cfg.Web.Allowed) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, err := netip.ParseAddr(clientIP(r))
+		if err == nil && slices.ContainsFunc(s.Cfg.Web.Allowed, func(p netip.Prefix) bool { return p.Contains(ip.Unmap()) }) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		s.Log.Warn("web: address not in allow_from", "ip", clientIP(r), "path", r.URL.Path)
+		http.Error(w, "Forbidden", http.StatusForbidden)
 	})
 }
 

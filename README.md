@@ -50,6 +50,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 
 - **Alerts** to Telegram, email and webhooks, driven by rules: thresholds per window, grouping and cooldown.
 - **SIEM forwarding** of every event over syslog (UDP/TCP/TLS) as CEF or JSON.
+- **Access by source**: `web.allow_from` lets in only the listed addresses and networks.
 - **Users and audit**: `admin` and `viewer` roles, bcrypt, login throttling, CSRF protection, and an audit log of every action.
 - **English and Russian** UI.
 - `/healthz` and Prometheus `/metrics` on a separate local port.

@@ -2,7 +2,7 @@
 
 ## Where it runs
 
-On the ISPmanager host itself, as root (it reads every site's audit log, manages ipset and iptables, tests and reloads nginx and calls `mgrctl`). Listen only on internal addresses (office network, VPN); the panel port should not be open to the internet.
+On the ISPmanager host itself, as root (it reads every site's audit log, manages ipset and iptables, tests and reloads nginx and calls `mgrctl`). Listen only on internal addresses (office network, VPN); the panel port should not be open to the internet. `web.allow_from` narrows it further: any other source gets 403, the login page included.
 
 ## Install and upgrade
 
@@ -16,7 +16,7 @@ The installer checks the new binary with the new config (`-check`, read-only) be
 
 ## Step 1: read-only
 
-Right after the install the panel only reads: the overview, the attack log, the analysis and the alerts work, and the `ipset` backend can block (it does not depend on nginx). Rules written to `rules_dir` have no effect yet, and `-check` says so.
+Right after the install the panel only reads: the overview, the attack log, the analysis and the alerts work, and the `ipset` backend can block (it does not depend on nginx). Rules written to `rules_dir` have no effect yet, and `-check` says so. To stay at this step on purpose, set `nginx.include_file: none` and `nginx.reload: []`, and leave `modsec` out of `block.backends`: the panel then neither reloads nginx nor warns that its rules are not loaded.
 
 ## Step 2: let nginx load the panel's rules
 
