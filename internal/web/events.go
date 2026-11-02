@@ -94,13 +94,17 @@ func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	})
 	pages := max(1, (total+pageSize-1)/pageSize)
 	var ips []string
+	allowed := map[string]bool{}
 	for _, x := range rows {
 		ips = append(ips, x.SrcIP)
+		if _, seen := allowed[x.SrcIP]; !seen {
+			allowed[x.SrcIP] = s.allowed(x.SrcIP)
+		}
 	}
 	s.render(w, r, rc, "attacks.html", page{Title: "Attack log", Active: "attacks", Data: map[string]any{
 		"F": f, "Rows": rows, "Total": total, "Pages": pages, "Periods": periods, "Cats": categoryOptions(),
 		"Sites": s.siteNames(), "Prev": f.Query(f.Page - 1), "Next": f.Query(f.Page + 1), "CSV": f.Query(0),
-		"DefaultBackends": s.Cfg.Block.Default, "Blocked": s.Blocks.Blocked(ips),
+		"DefaultBackends": s.Cfg.Block.Default, "Blocked": s.Blocks.Blocked(ips), "Allowed": allowed,
 	}})
 }
 

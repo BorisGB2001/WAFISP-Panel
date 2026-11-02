@@ -32,8 +32,11 @@
     <tbody>
     {{range $d.Rows}}<tr>
       <td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td>
-      <td class="mono"><a href="/ip/{{.SrcIP}}" class="{{if index $d.Blocked .SrcIP}}blocked{{end}}" title="{{if index $d.Blocked .SrcIP}}{{t "blocked"}}{{else}}{{t "Everything about this address"}}{{end}}">{{.SrcIP}}</a>{{if index $d.Blocked .SrcIP}} ⛔{{end}}{{if .Country}} <small class="muted">{{.Country}}</small>{{end}}
-        {{if $.IsAdmin}}{{template "quickban" (dict "CSRF" $.CSRF "IP" .SrcIP "Site" .Site "Why" (print (cat .Category) " · " .Site .Path) "Back" (print "/attacks?" ($d.F.Query $d.F.Page)) "Backends" $d.DefaultBackends)}}{{end}}</td>
+      {{$blocked := index $d.Blocked .SrcIP}}{{$allowed := index $d.Allowed .SrcIP}}
+      <td class="mono"><a href="/ip/{{.SrcIP}}" class="{{if $blocked}}blocked{{else if $allowed}}allowed{{end}}" title="{{t "Everything about this address"}}">{{.SrcIP}}</a>{{if .Country}} <small class="muted">{{.Country}}</small>{{end}}
+        {{if $blocked}}<a href="/ip/{{.SrcIP}}" class="badge bad" title="{{t "blocked"}} — {{t "Who blocked it, when and why"}}">🔒</a>
+        {{else if $allowed}}<span class="badge good" title="{{t "on the allow list"}}">✓</span>
+        {{else if $.IsAdmin}}{{template "quickban" (dict "CSRF" $.CSRF "IP" .SrcIP "Site" .Site "Why" (print (cat .Category) " · " .Site .Path) "Back" (print "/attacks?" ($d.F.Query $d.F.Page)) "Backends" $d.DefaultBackends)}}{{end}}</td>
       <td class="url"><a class="muted" href="/attacks?{{$f.With "site" .Site}}">{{.Site}}</a> <span class="mono">{{.Method}}</span> {{cut .Path 80}} <small class="muted">{{.Status}}</small></td>
       <td><span class="atype" title="{{.Reason}}">{{cat .Category}}</span><br><small class="mono">{{range $i, $r := .Rules}}{{if lt $i 4}}<a href="/attacks?{{$f.With "rule" $r}}">{{$r}}</a> {{end}}{{end}}{{if gt (len .Rules) 4}}+{{sub (len .Rules) 4}}{{end}}</small>
         {{if and $.IsAdmin .Top}}<a class="small" href="/massban?rule={{.Top}}&amp;period={{$f.Period}}" title="{{t "Ban everyone who used this attack (rule %s)" .Top}}">⛔ {{t "everyone"}}</a>{{end}}</td>

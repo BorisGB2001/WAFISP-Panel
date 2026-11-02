@@ -566,6 +566,10 @@ func TestAllowListNeverBans(t *testing.T) {
 	if _, b := get(t, ts, c, "/ip/198.51.100.7"); !strings.Contains(b, "manually by admin") || !strings.Contains(b, "sqli probes") {
 		t.Fatal("the address page does not say who blocked it and why")
 	}
+	// In the log a blocked address has one status badge and no ban button.
+	if _, b := get(t, ts, c, "/attacks?ip=198.51.100.7"); !strings.Contains(b, `title="blocked — Who blocked it, when and why">🔒`) || strings.Contains(b, "Block this address") {
+		t.Fatal("the log still offers to ban a blocked address")
+	}
 	// Putting it on the allow list lifts the block.
 	post("/allow", url.Values{"ip": {"198.51.100.0/24"}, "reason": {"partner"}, "ttl": {"0"}})
 	if _, ok := env.Blocks.Lookup("198.51.100.7"); ok || len(env.ipset.ips) != 0 {

@@ -297,4 +297,5 @@ var ruWAFISP = map[string]string{
 	"Take %s off the allow list": "Убрать %s из белого списка",
 	"The WAF keeps logging this address on every site but never blocks it, and the panel never bans it. Prefer an exclusion for one rule when you can.": "WAF продолжает записывать запросы этого адреса на всех сайтах, но не блокирует их, а панель никогда его не банит. Если мешает одно правило, лучше сделать исключение.",
 	"A new time counts from now. “To allow list” unblocks the address; after that the WAF only logs its requests and the panel never bans it.":          "Новый срок отсчитывается с текущего момента. «В белый список» снимает блокировку; дальше WAF только записывает запросы адреса, а панель его не банит.",
+	"Who blocked it, when and why": "Кто, когда и почему заблокировал",
 }
