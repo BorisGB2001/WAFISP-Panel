@@ -437,3 +437,14 @@ form.rowform .btn { padding: 3px 8px; font-size: 12px; }
 .side form.search { margin: 0 0 10px; }
 .side form.search input { width: 100%; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); color: var(--side-fg); padding: 6px 9px; border-radius: 6px; font-size: 13px; }
 .side form.search input::placeholder { color: var(--side-fg); opacity: .55; }
+
+/* traps: the new-trap row and the path menu of the top paths */
+form .row { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 2fr) 160px; gap: 12px; }
+@media (max-width: 900px) { form .row { grid-template-columns: 1fr; } }
+details.pathmenu { display: inline; }
+details.pathmenu summary { cursor: pointer; list-style: none; display: inline; color: var(--accent); }
+details.pathmenu summary::after { content: " ▾"; font-size: 11px; opacity: .7; }
+details.pathmenu[open] summary::after { content: " ▴"; }
+details.pathmenu summary::-webkit-details-marker { display: none; }
+details.pathmenu summary:hover { color: var(--accent); text-decoration: underline; }
+details.pathmenu .menu { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 10px; font-size: 13px; }

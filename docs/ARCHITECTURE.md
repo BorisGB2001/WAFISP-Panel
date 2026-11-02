@@ -37,11 +37,11 @@ The panel owns `rules_dir` (`/etc/wafisp/modsec`) and rewrites it from `data_dir
 
 | File | Loaded | Content |
 |---|---|---|
-| `before.conf` | before CRS | `allow.txt` → `ctl:ruleEngine=DetectionOnly` (logged, never blocked); `deny.txt` → `deny,status:403`; site modes (`ctl:ruleEngine=` by Host); exclusions limited to a site or a path (`ctl:ruleRemoveById`, `ctl:ruleRemoveTargetById`, ...) |
+| `before.conf` | before CRS | `allow.txt` → `ctl:ruleEngine=DetectionOnly` (logged, never blocked); `deny.txt` → `deny,status:403`; site modes (`ctl:ruleEngine=` by Host); traps (`REQUEST_FILENAME @beginsWith` path, by Host for one site: `deny,status:403,log,auditlog`, or `pass` in dry run); exclusions limited to a site or a path (`ctl:ruleRemoveById`, `ctl:ruleRemoveTargetById`, ...) |
 | `after.conf` | after CRS | exclusions for every site (`SecRuleRemoveById`, `SecRuleUpdateTargetById`) |
 | `allow.txt`, `deny.txt` | by `@ipMatchFromFile` | addresses and subnets |
 
-Rule ids: 7710001–7710002 (lists), 77101xx (site modes), 7711000 + exclusion id (exclusions). Every value that ends up in a directive is validated against a strict pattern first.
+Rule ids: 7710001–7710002 (lists), 77101xx (site modes), 7711000 + exclusion id (exclusions), 7720000 + trap id (traps). The auto-ban bans every address that falls into a trap, whether the auto-ban itself is on or not, at most once an hour per address and trap, and stores the rule that fired with the block. Every value that ends up in a directive is validated against a strict pattern first.
 
 A change writes the files, runs `nginx -t`, and only then reloads nginx. When the test fails the previous files are put back and the change is refused. A reload is postponed while the host has less than `min_avail_mb` available (each reload starts workers that load the whole rule set again) and retried every minute.
 

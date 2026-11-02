@@ -37,7 +37,7 @@
     {{if $d.Sites}}<ol class="top">{{$max := (index $d.Sites 0).Count}}{{range $d.Sites}}<li><span class="k"><a href="/attacks?{{$d.F.With "site" .Key}}">{{.Key}}</a></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
   </section>
   <section class="card"><h3>{{t "Top rules"}}</h3>{{template "rulelist" $d.Rules}}</section>
-  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
   <section class="card"><h3>{{t "Countries"}}</h3>{{template "toplist" $d.Countries}}</section>
   <section class="card">
     <h3>{{t "Audit logs"}}</h3>

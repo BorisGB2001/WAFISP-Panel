@@ -21,6 +21,7 @@ var Categories = []struct{ Code, Name string }{
 	{"leakage", "Data Leakage"},
 	{"webshell", "Web Shell"},
 	{"panel", "Panel Deny List"},
+	{"trap", "Path Trap"},
 	{"custom", "Custom Rule"},
 	{"other", "Other"},
 }
@@ -58,6 +59,9 @@ func RuleCategory(id string) string {
 	}
 	if strings.HasPrefix(id, "771") && len(id) == 7 {
 		return "panel"
+	}
+	if strings.HasPrefix(id, "772") && len(id) == 7 {
+		return "trap"
 	}
 	if len(id) != 6 || id[0] != '9' {
 		return "custom"

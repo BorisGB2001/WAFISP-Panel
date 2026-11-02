@@ -30,6 +30,8 @@ const (
 	idModeBase  = 7710100
 	idExclBase  = 7711000
 	maxExclRule = 7719999
+	idTrapBase  = 7720000
+	maxTrapRule = 7729999
 )
 
 // Placeholder keeps the address files non-empty (TEST-NET-1).
@@ -69,6 +71,51 @@ type Exclusion struct {
 	Meta
 }
 
+// Trap bans whoever requests a path: the WAF denies and logs the request,
+// and the auto-ban blocks the address for Duration (0: for good).
+type Trap struct {
+	ID       int  `json:"id"`
+	Disabled bool `json:"disabled,omitempty"`
+	// DryRun logs and records whom it would ban, blocks nothing.
+	DryRun bool   `json:"dry_run,omitempty"`
+	Site   string `json:"site,omitempty"` // empty: every site
+	// Hosts are the server names of Site, matched against Host.
+	Hosts []string `json:"hosts,omitempty"`
+	// Path is a prefix of the request path, compared without case.
+	Path     string        `json:"path"`
+	Duration time.Duration `json:"duration"`
+	Meta
+}
+
+func (t *Trap) Validate() error {
+	if !pathRe.MatchString(t.Path) || len(t.Path) < 2 {
+		return fmt.Errorf("the trap path must start with /, be longer than / alone and hold no spaces or quotes")
+	}
+	if t.Site != "" && len(t.Hosts) == 0 {
+		return fmt.Errorf("site %s has no server names", t.Site)
+	}
+	for _, h := range t.Hosts {
+		if !hostRe.MatchString(h) {
+			return fmt.Errorf("%q is not a host name", h)
+		}
+	}
+	if t.Duration < 0 || (t.Duration > 0 && t.Duration < time.Minute) {
+		return fmt.Errorf("a ban must last at least 1 minute, or 0 for good")
+	}
+	if t.ID <= 0 || idTrapBase+t.ID > maxTrapRule {
+		return fmt.Errorf("trap id %d is out of range", t.ID)
+	}
+	return nil
+}
+
+// Matches tells whether a request for path on site falls into the trap.
+func (t *Trap) Matches(site, path string) bool {
+	if t.Disabled || (t.Site != "" && t.Site != site) {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(path), strings.ToLower(t.Path))
+}
+
 // Mode overrides the WAF engine of one site.
 type Mode struct {
 	Site   string   `json:"site"`
@@ -83,6 +130,7 @@ type State struct {
 	Deny       []string    `json:"deny"` // owned by the block manager
 	Exclusions []Exclusion `json:"exclusions"`
 	Modes      []Mode      `json:"modes"`
+	Traps      []Trap      `json:"traps,omitempty"`
 	NextID     int         `json:"next_id"`
 }
 
@@ -192,6 +240,27 @@ func (s *State) Files(dir string) (before, after string) {
 		fmt.Fprintf(&b, "# %s: %s (%s, %s)\n", m.Site, m.Engine, oneLine(m.By), oneLine(m.Reason))
 		fmt.Fprintf(&b, "SecRule REQUEST_HEADERS:Host \"@rx %s\" \"id:%d,phase:1,pass,nolog,t:lowercase,ctl:ruleEngine=%s\"\n",
 			hostsRx(m.Hosts), idModeBase+i, m.Engine)
+	}
+
+	// Traps come before the CRS rules: the request is denied and logged even
+	// when no attack rule fires, so the panel sees it and bans the address.
+	for _, t := range s.Traps {
+		if t.Disabled || t.Validate() != nil {
+			continue
+		}
+		action := "deny,status:403"
+		if t.DryRun {
+			action = "pass"
+		}
+		fmt.Fprintf(&b, "# trap %d: %s%s (%s, %s)\n", t.ID, t.Site, t.Path, oneLine(t.By), oneLine(t.Reason))
+		head := fmt.Sprintf("id:%d,phase:1,%s,log,auditlog,msg:'WAFISP Panel: trap %s',tag:'wafisp-panel',tag:'wafisp-trap'", idTrapBase+t.ID, action, t.Path)
+		path := strings.ToLower(t.Path)
+		if t.Site == "" {
+			fmt.Fprintf(&b, "SecRule REQUEST_FILENAME \"@beginsWith %s\" \"%s,t:lowercase\"\n", path, head)
+			continue
+		}
+		fmt.Fprintf(&b, "SecRule REQUEST_HEADERS:Host \"@rx %s\" \"%s,t:lowercase,chain\"\n", hostsRx(t.Hosts), head)
+		fmt.Fprintf(&b, "\tSecRule REQUEST_FILENAME \"@beginsWith %s\" \"t:lowercase\"\n", path)
 	}
 
 	for _, x := range s.Exclusions {

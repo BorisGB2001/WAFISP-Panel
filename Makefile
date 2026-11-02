@@ -6,7 +6,8 @@
 # boris.gb 2026-11-02 19:12 - 0.2.3: web.allow_from (403 for other sources), block form layout, address page block line
 # boris.gb 2026-11-02 20:33 - 0.2.4: allow list logs instead of ignoring and is never banned, who/when/why on blocked addresses, blocked IPs in red
 # boris.gb 2026-11-02 21:15 - 0.2.5: attack log shows one status per address (🔒 blocked, ✓ allowed, ⛔ ban button only for the rest)
-VERSION ?= 0.2.5
+# boris.gb 2026-11-02 21:26 - 0.3.0: path traps (ban whoever requests a path), path menu in the top paths, the rule behind every automatic ban
+VERSION ?= 0.3.0
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test

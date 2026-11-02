@@ -384,3 +384,29 @@ func (m *Manager) CheckInclude(file string) []string {
 	}
 	return problems
 }
+
+// AddTrap stores t with a new id.
+func (s *State) AddTrap(t Trap) (Trap, error) {
+	t.ID = 1
+	for _, x := range s.Traps {
+		t.ID = max(t.ID, x.ID+1)
+	}
+	if err := t.Validate(); err != nil {
+		return t, err
+	}
+	for _, x := range s.Traps {
+		if x.Site == t.Site && strings.EqualFold(x.Path, t.Path) {
+			return t, fmt.Errorf("trap %d already covers this path", x.ID)
+		}
+	}
+	s.Traps = append(s.Traps, t)
+	return t, nil
+}
+
+func (s *State) Trap(id int) *Trap {
+	i := slices.IndexFunc(s.Traps, func(x Trap) bool { return x.ID == id })
+	if i < 0 {
+		return nil
+	}
+	return &s.Traps[i]
+}

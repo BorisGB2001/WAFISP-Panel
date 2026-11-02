@@ -46,8 +46,8 @@
       <td class="nowrap">{{dt .At}}</td>
       <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a></td>
       <td>{{.Site}}</td>
-      <td class="small">{{.Reason}}</td>
-      <td>#{{.Offence}} · {{if eq .Duration 0}}{{t "Permanent"}}{{else}}{{.Duration}}{{end}}</td>
+      <td class="small">{{if .Rule.Kind}}{{template "banrule" .Rule}}<br>{{end}}<span class="muted">{{.Reason}}</span></td>
+      <td>#{{.Offence}} · {{dur .Duration}}</td>
       <td>{{if eq .Result "blocked"}}<span class="badge good">{{t "blocked"}}</span>{{else if eq .Result "would block"}}<span class="badge warn">{{t "would block"}}</span>{{else}}<span class="badge" title="{{.Result}}">{{cut .Result 40}}</span>{{end}}</td>
     </tr>{{end}}</tbody>
   </table></div>

@@ -20,6 +20,7 @@
     <a href="/blocks" class="{{if eq .Active "blocks"}}on{{end}}">{{t "Blocking"}}</a>
     <a href="/blocked" class="sub {{if eq .Active "blocked"}}on{{end}}">{{t "Blocked list"}}{{if .BlockedCount}} <span class="count">{{.BlockedCount}}</span>{{end}}</a>
     <a href="/autoban" class="{{if eq .Active "autoban"}}on{{end}}">{{t "Auto-ban"}}</a>
+    <a href="/traps" class="sub {{if eq .Active "traps"}}on{{end}}">{{t "Traps"}}</a>
     <a href="/exclusions" class="{{if eq .Active "exclusions"}}on{{end}}">{{t "Exclusions"}}</a>
     <a href="/alerts" class="{{if eq .Active "alerts"}}on{{end}}">{{t "Alerts"}}</a>
     <a href="/rules" class="{{if eq .Active "rules"}}on{{end}}">{{t "Alert rules"}}</a>
@@ -97,9 +98,23 @@
 
 {{/* blockinfo: . is a block.Entry — who blocked, when, why, how long, how */}}
 {{define "blockinfo"}}<div class="note err blockinfo">⛔ <b>{{t "Blocked %s" .IP}}</b> {{dt .At}} · {{template "blockhow" .}}<br>
+{{with .Rule}}{{t "Rule"}}: {{template "banrule" .}}<br>{{end}}
 {{t "Reason"}}: «{{.Reason}}» · {{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{t "until"}} {{dt .Expires}} ({{left .Expires}}){{end}} · {{join .Backends ", "}}{{if .Site}} · {{t "from an attack on %s" .Site}}{{end}}</div>{{end}}
 
-{{define "blockhow"}}{{if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically, by the auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
+{{define "blockhow"}}{{if eq .Via "trap"}}{{t "automatically by the panel, path trap"}}{{else if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically by the panel, auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
+
+{{/* banrule: . is a block.Rule — which automatic rule fired */}}
+{{define "banrule"}}{{if eq .Kind "trap"}}<a href="/traps">{{t "trap #%d" .Trap}}</a>: {{t "requests to %s on %s" .Path (or .Site (t "every site"))}}{{else if eq .Kind "threshold"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "%d denied requests within %d min" .Count .WindowMin}}{{else if eq .Kind "instant"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "one denied request of class %s with score ≥ %d" (cat .Class) .Score}}{{end}}{{if gt .Offence 1}} · {{t "ban #%d of this address" .Offence}}{{end}}{{end}}
+
+{{/* pathlist: .L is a top list keyed site+path; .Admin shows the ban links */}}
+{{define "pathlist"}}{{$admin := .Admin}}
+{{if .L}}<ol class="top">{{$max := (index .L 0).Count}}{{range .L}}{{$sp := splitPath .Key}}<li><span class="k"><details class="pathmenu"><summary title="{{.Key}}">{{if .Key}}{{.Key}}{{else}}—{{end}}</summary><span class="menu">
+  <a href="/attacks?site={{index $sp 0}}&amp;path={{index $sp 1}}&amp;period=7d">📋 {{t "Events on this path"}}</a>
+  {{if $admin}}<a href="/massban?site={{index $sp 0}}&amp;path={{index $sp 1}}&amp;period=7d">⛔ {{t "Ban everyone who requested it…"}}</a>
+  <a href="/traps?site={{index $sp 0}}&amp;path={{index $sp 1}}#new">🪤 {{t "Trap: ban whoever requests it from now on…"}}</a>{{end}}
+</span></details></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
+{{end}}
 
 {{/* allowinfo: . is a policy.Addr on the allow list */}}
 {{define "allowinfo"}}<div class="note ok">✓ <b>{{t "On the allow list: %s" .IP}}</b> {{dt .At}} · {{.By}} · «{{.Reason}}» · {{if .Expires.IsZero}}{{t "until removed"}}{{else}}{{t "until"}} {{dt .Expires}}{{end}}<br>

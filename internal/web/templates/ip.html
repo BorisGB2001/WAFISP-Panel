@@ -17,7 +17,7 @@
   <section class="card"><h3>{{t "Rules"}}</h3>
     {{if $d.Rules}}<ol class="top">{{$max := (index $d.Rules 0).Count}}{{range $d.Rules}}<li><span class="k"><span class="mono">{{.Key}}</span> <small class="muted">{{cut (index $d.RuleMsg .Key) 60}}</small></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>{{else}}<p class="muted">{{t "No data"}}</p>{{end}}
   </section>
-  <section class="card"><h3>{{t "Paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card"><h3>{{t "Paths"}}</h3>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
   <section class="card">
     <h3>{{t "Latest events"}}</h3>
     <table class="compact"><tbody>{{range $d.Recent}}<tr><td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td><td class="url">{{.Site}} {{cut .Path 50}}</td><td>{{template "verdict" .Denied}}</td></tr>{{else}}<tr><td class="muted">{{t "No events"}}</td></tr>{{end}}</tbody></table>

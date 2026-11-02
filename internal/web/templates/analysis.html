@@ -37,7 +37,7 @@
 <div class="grid2">
   <section class="card"><h3>{{t "Top attackers"}}</h3>{{template "iplist" $d.Attackers}}</section>
   <section class="card"><h3>{{t "Top rules"}}</h3>{{template "rulelist" $d.Rules}}</section>
-  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "toplist" $d.Paths}}</section>
+  <section class="card"><h3>{{t "Top paths"}}</h3>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
   <section class="card"><h3>{{t "Countries"}}</h3>{{template "toplist" $d.Countries}}</section>
 </div>
 {{end}}

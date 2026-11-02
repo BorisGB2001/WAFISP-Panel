@@ -163,6 +163,7 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	if err != nil {
 		return fmt.Errorf("autoban: %w", err)
 	}
+	ban.Traps = func() []policy.Trap { st := pol.State(); return st.Traps }
 	banEvents := make(chan event.Event, 1000)
 	notice := func(severity, text string) {
 		a := rules.Alert{ID: fmt.Sprint(time.Now().UnixNano()), Rule: "system", Severity: severity, Note: text,
@@ -336,7 +337,12 @@ func runAutoban(ctx context.Context, ban *autoban.Engine, blocks *block.Manager,
 				break
 			}
 			s := ban.Settings()
-			e := block.Entry{IP: d.IP, Backends: s.Backends, By: "autoban", Via: "autoban", Reason: reason, At: time.Now(), Site: d.Site}
+			via := "autoban"
+			if d.Rule.Trap > 0 {
+				via = "trap"
+			}
+			rule := d.Rule
+			e := block.Entry{IP: d.IP, Backends: s.Backends, By: "autoban", Via: via, Reason: reason, At: time.Now(), Site: d.Site, Rule: &rule}
 			if d.Duration > 0 {
 				e.Expires = e.At.Add(d.Duration)
 			}

@@ -148,3 +148,36 @@ func TestAllowedFor(t *testing.T) {
 		}
 	}
 }
+
+func TestTrapRules(t *testing.T) {
+	s := State{Traps: []Trap{
+		{ID: 1, Path: "/.env", Duration: 0},
+		{ID: 2, Site: "shop.example.ru", Hosts: []string{"shop.example.ru"}, Path: "/Old-Admin", DryRun: true},
+		{ID: 3, Path: "/x", Disabled: true},
+		{ID: 4, Path: "/", Duration: 0}, // too wide, refused
+	}}
+	before, _ := s.Files("/r")
+	for _, want := range []string{
+		`SecRule REQUEST_FILENAME "@beginsWith /.env" "id:7720001,phase:1,deny,status:403,log,auditlog,msg:'WAFISP Panel: trap /.env',tag:'wafisp-panel',tag:'wafisp-trap',t:lowercase"`,
+		`id:7720002,phase:1,pass,log,auditlog,`,
+		"\tSecRule REQUEST_FILENAME \"@beginsWith /old-admin\" \"t:lowercase\"",
+	} {
+		if !strings.Contains(before, want) {
+			t.Errorf("missing %s in\n%s", want, before)
+		}
+	}
+	if strings.Contains(before, "7720003") || strings.Contains(before, "7720004") {
+		t.Error("a disabled or invalid trap was rendered")
+	}
+	var st State
+	if _, err := st.AddTrap(Trap{Path: "/"}); err == nil {
+		t.Error("a trap on / accepted")
+	}
+	a, err := st.AddTrap(Trap{Path: "/wp-login.php"})
+	if err != nil || a.ID != 1 {
+		t.Fatal(a, err)
+	}
+	if _, err := st.AddTrap(Trap{Path: "/WP-LOGIN.php"}); err == nil {
+		t.Error("a duplicate trap accepted")
+	}
+}

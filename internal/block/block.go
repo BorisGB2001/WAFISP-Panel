@@ -49,8 +49,29 @@ type Entry struct {
 	Expires  time.Time `json:"expires,omitzero"`
 	// Site is where the attack came from, if blocked from an event.
 	Site string `json:"site,omitempty"`
-	// Via is how the block was made when not by hand: "autoban" or "massban".
+	// Via is how the block was made when not by hand: "autoban", "trap"
+	// or "massban".
 	Via string `json:"via,omitempty"`
+	// Rule is the automatic rule that made the block, if any.
+	Rule *Rule `json:"rule,omitempty"`
+}
+
+// Rule describes the automatic rule behind a block, so the panel can say
+// which one fired.
+type Rule struct {
+	Kind string `json:"kind"` // trap | threshold | instant
+	// trap: its id, site (empty: every site) and path prefix
+	Trap int    `json:"trap,omitempty"`
+	Site string `json:"site,omitempty"`
+	Path string `json:"path,omitempty"`
+	// threshold: Count denied requests within WindowMin minutes
+	Count     int `json:"count,omitempty"`
+	WindowMin int `json:"window_min,omitempty"`
+	// instant: one denied request of Class with at least Score
+	Class string `json:"class,omitempty"`
+	Score int    `json:"score,omitempty"`
+	// Offence is the address's ban number within the auto-ban's memory.
+	Offence int `json:"offence,omitempty"`
 }
 
 type Manager struct {

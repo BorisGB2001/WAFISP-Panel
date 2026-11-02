@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"wafisp/internal/event"
+	"wafisp/internal/policy"
 )
 
 var t0 = time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)
@@ -106,5 +107,35 @@ func TestValidate(t *testing.T) {
 		if s.Validate([]string{"ipset"}) == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+}
+
+func TestTrap(t *testing.T) {
+	e := open(t)
+	s := e.Settings()
+	s.Enabled = false // traps work with the auto-ban off
+	e.SetSettings(s)
+	e.Traps = func() []policy.Trap {
+		return []policy.Trap{{ID: 3, Site: "shop.example", Path: "/WP-Login.php", Duration: 7 * 24 * time.Hour}, {ID: 4, Path: "/old-admin", Disabled: true}}
+	}
+	hit := func(sec int, ip, site, uri string) *Decision {
+		x := ev(sec, ip, "other", 0, false) // a passed request is enough
+		x.Site, x.Host, x.URI = site, site, uri
+		return e.Process(x)
+	}
+	d := hit(0, "203.0.113.5", "shop.example", "/wp-login.php?redirect=1")
+	if d == nil || d.Rule.Kind != "trap" || d.Rule.Trap != 3 || d.Duration != 7*24*time.Hour || d.DryRun {
+		t.Fatalf("trap decision %+v", d)
+	}
+	if hit(10, "203.0.113.5", "shop.example", "/wp-login.php") != nil {
+		t.Fatal("a second decision for the same address within the hour")
+	}
+	for _, c := range []struct{ ip, site, uri string }{{"203.0.113.6", "blog.example", "/wp-login.php"}, {"203.0.113.6", "shop.example", "/wp-admin"}, {"203.0.113.6", "shop.example", "/old-admin/x"}} {
+		if hit(20, c.ip, c.site, c.uri) != nil {
+			t.Fatalf("%s%s fell into a trap", c.site, c.uri)
+		}
+	}
+	if h := e.TrapHits()[3]; h.Hits != 2 {
+		t.Fatalf("hits %+v", h)
 	}
 }

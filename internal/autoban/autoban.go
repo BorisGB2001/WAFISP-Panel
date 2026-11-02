@@ -2,6 +2,7 @@
 // requests within a window, or one request of a dangerous class. Every
 // new offence of the same address blocks it for longer (a day, a week,
 // then for good). In dry-run mode it only records whom it would block.
+// Traps ban whoever requests a path, whether the auto-ban is on or not.
 package autoban
 
 import (
@@ -13,7 +14,9 @@ import (
 	"time"
 
 	"wafisp/internal/auth"
+	"wafisp/internal/block"
 	"wafisp/internal/event"
+	"wafisp/internal/policy"
 )
 
 // Settings are edited in the panel and kept in autoban.json.
@@ -91,6 +94,8 @@ type Decision struct {
 	Duration time.Duration `json:"duration"`
 	Reason   string        `json:"reason"`
 	DryRun   bool          `json:"dry_run"`
+	// Rule is the rule that fired; Rule.Trap is set for a trap.
+	Rule block.Rule `json:"rule"`
 	// Result is "blocked", "would block", "skipped: ..." or an error.
 	Result  string        `json:"result"`
 	Samples []event.Event `json:"-"`
@@ -101,18 +106,30 @@ type state struct {
 	Settings  Settings               `json:"settings"`
 	Offences  map[string][]time.Time `json:"offences"`
 	Decisions []Decision             `json:"decisions"`
+	TrapHits  map[int]TrapHits       `json:"trap_hits,omitempty"`
+}
+
+// TrapHits counts the requests that fell into one trap.
+type TrapHits struct {
+	Hits int       `json:"hits"`
+	Last time.Time `json:"last"`
 }
 
 type Engine struct {
 	File string
+	// Traps returns the current traps; nil means none.
+	Traps func() []policy.Trap
 
 	mu     sync.Mutex
 	st     state
 	recent map[string][]event.Event // denied events per address within the window
+	// trapSeen is when an address last fell into a trap ("id ip"): one
+	// decision per address and trap an hour.
+	trapSeen map[string]time.Time
 }
 
 func Open(file string) (*Engine, error) {
-	e := &Engine{File: file, recent: map[string][]event.Event{}}
+	e := &Engine{File: file, recent: map[string][]event.Event{}, trapSeen: map[string]time.Time{}}
 	e.st = state{Settings: Defaults(), Offences: map[string][]time.Time{}}
 	b, err := os.ReadFile(file)
 	if err == nil {
@@ -124,6 +141,9 @@ func Open(file string) (*Engine, error) {
 	}
 	if e.st.Offences == nil {
 		e.st.Offences = map[string][]time.Time{}
+	}
+	if e.st.TrapHits == nil {
+		e.st.TrapHits = map[int]TrapHits{}
 	}
 	return e, nil
 }
@@ -173,16 +193,21 @@ func (e *Engine) Process(ev event.Event) *Decision {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	s := e.st.Settings
-	if !s.Enabled || !ev.Denied || ev.SrcIP == "" {
-		return nil
-	}
 	now := ev.Time
 	if now.IsZero() {
 		now = time.Now()
 	}
+	if d := e.trap(ev, now); d != nil || ev.SrcIP == "" {
+		return d
+	}
+	if !s.Enabled || !ev.Denied {
+		return nil
+	}
 	var reason string
+	var rule block.Rule
 	if slices.Contains(s.Instant, ev.Category) && ev.Score >= s.InstantScore {
 		reason = fmt.Sprintf("%s (score %d, rule %s) on %s%s", event.CategoryName(ev.Category), ev.Score, ev.RuleID(), ev.Host, ev.Path())
+		rule = block.Rule{Kind: "instant", Class: ev.Category, Score: s.InstantScore}
 		e.recent[ev.SrcIP] = append(e.recent[ev.SrcIP], ev)
 	} else {
 		list := append(e.recent[ev.SrcIP], ev)
@@ -202,6 +227,7 @@ func (e *Engine) Process(ev event.Event) *Decision {
 			sites[x.Site] = true
 		}
 		reason = fmt.Sprintf("%d denied requests in %s on %d site(s)", len(list), s.Window, len(sites))
+		rule = block.Rule{Kind: "threshold", Count: s.Threshold, WindowMin: int(s.Window / time.Minute)}
 	}
 	samples := e.recent[ev.SrcIP]
 	if len(samples) > 5 {
@@ -210,11 +236,64 @@ func (e *Engine) Process(ev event.Event) *Decision {
 	delete(e.recent, ev.SrcIP)
 
 	// Escalation: offences within the memory, this one included.
-	past := slices.DeleteFunc(slices.Clone(e.st.Offences[ev.SrcIP]), func(t time.Time) bool { return now.Sub(t) > s.Memory })
-	n := len(past) + 1
+	n := e.offence(ev.SrcIP, now)
 	d := s.Durations[min(n-1, len(s.Durations)-1)]
+	rule.Offence = n
 	return &Decision{IP: ev.SrcIP, Site: ev.Site, At: now, Offence: n, Duration: d, Reason: reason,
-		DryRun: s.DryRun, Samples: slices.Clone(samples)}
+		DryRun: s.DryRun, Rule: rule, Samples: slices.Clone(samples)}
+}
+
+// offence is the number the next ban of ip would get within the memory.
+func (e *Engine) offence(ip string, now time.Time) int {
+	mem := e.st.Settings.Memory
+	past := slices.DeleteFunc(slices.Clone(e.st.Offences[ip]), func(t time.Time) bool { return now.Sub(t) > mem })
+	return len(past) + 1
+}
+
+// trap returns a decision when ev fell into a trap: any request, denied
+// or not, whether the auto-ban is on or not.
+func (e *Engine) trap(ev event.Event, now time.Time) *Decision {
+	if e.Traps == nil || ev.SrcIP == "" {
+		return nil
+	}
+	for _, t := range e.Traps() {
+		if !t.Matches(ev.Site, ev.Path()) {
+			continue
+		}
+		h := e.st.TrapHits[t.ID]
+		h.Hits++
+		h.Last = now
+		e.st.TrapHits[t.ID] = h
+		key := fmt.Sprint(t.ID, " ", ev.SrcIP)
+		if last, ok := e.trapSeen[key]; ok && now.Sub(last) < time.Hour {
+			return nil
+		}
+		e.trapSeen[key] = now
+		if len(e.trapSeen) > 10000 {
+			for k, at := range e.trapSeen {
+				if now.Sub(at) > time.Hour {
+					delete(e.trapSeen, k)
+				}
+			}
+		}
+		n := e.offence(ev.SrcIP, now)
+		return &Decision{IP: ev.SrcIP, Site: ev.Site, At: now, Offence: n, Duration: t.Duration, DryRun: t.DryRun,
+			Reason:  fmt.Sprintf("trap %d: %s %s%s", t.ID, ev.Method, ev.Host, ev.Path()),
+			Rule:    block.Rule{Kind: "trap", Trap: t.ID, Site: t.Site, Path: t.Path, Offence: n},
+			Samples: []event.Event{ev}}
+	}
+	return nil
+}
+
+// TrapHits returns the hit counters of the traps.
+func (e *Engine) TrapHits() map[int]TrapHits {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	out := make(map[int]TrapHits, len(e.st.TrapHits))
+	for k, v := range e.st.TrapHits {
+		out[k] = v
+	}
+	return out
 }
 
 // Record keeps a decision and, when it blocked, counts the offence.

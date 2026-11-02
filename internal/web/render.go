@@ -78,6 +78,13 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, rc *reqCtx, name
 }
 
 var funcs = template.FuncMap{
+	// splitPath splits a top-list key site+path into [site, path].
+	"splitPath": func(k string) []string {
+		if i := strings.Index(k, "/"); i >= 0 {
+			return []string{k[:i], k[i:]}
+		}
+		return []string{k, ""}
+	},
 	"hasSuffix":  strings.HasSuffix,
 	"hasPrefix":  strings.HasPrefix,
 	"trimSuffix": strings.TrimSuffix,
@@ -222,6 +229,15 @@ func langFuncs(lang string) template.FuncMap {
 		"t":   func(s string, args ...any) string { return i18n.T(lang, s, args...) },
 		"cat": func(code string) string { return i18n.T(lang, event.CategoryName(code)) },
 		"tx":  func(s string) string { return i18n.T(lang, s) },
+		// dur names a ban length the way the forms do: "7 days", "Permanent".
+		"dur": func(d time.Duration) string {
+			for _, o := range banDurations {
+				if o.D == d {
+					return i18n.T(lang, o.Label)
+				}
+			}
+			return d.String()
+		},
 		"dt": func(t time.Time) string {
 			if t.IsZero() {
 				return "—"

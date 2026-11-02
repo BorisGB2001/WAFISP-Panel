@@ -593,3 +593,50 @@ func TestAllowListNeverBans(t *testing.T) {
 		t.Fatal("allowed addresses must be logged, not ignored")
 	}
 }
+
+func TestTraps(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+
+	// Every top path opens a menu: events, ban everyone, set a trap.
+	_, b := get(t, ts, c, "/?period=7d")
+	if !strings.Contains(b, `/traps?site=shop.example.ru&amp;path=%2fadmin%2fsave#new`) || !strings.Contains(b, `/massban?site=shop.example.ru&amp;path=%2fadmin%2fsave&amp;period=7d`) {
+		t.Fatal("no path menu on the overview")
+	}
+	// The form shows who already requested the path.
+	_, page := get(t, ts, c, "/traps?site=shop.example.ru&path=/admin/save")
+	if !strings.Contains(page, "In the last 7 days 3 addresses") {
+		t.Fatal("no preview of the path's visitors")
+	}
+	csrf := csrfRe.FindStringSubmatch(page)[1]
+	v := url.Values{"csrf": {csrf}, "site": {"shop.example.ru"}, "path": {"/admin/save"}, "ttl": {"0"}, "reason": {"nobody saves here"}}
+	resp, _ := c.PostForm(ts.URL+"/traps", v)
+	body(t, resp)
+	if len(env.Policy.State().Traps) != 0 {
+		t.Fatal("trap set without confirmation")
+	}
+	v.Set("confirm", "yes")
+	resp, _ = c.PostForm(ts.URL+"/traps", v)
+	body(t, resp)
+	traps := env.Policy.State().Traps
+	if len(traps) != 1 || traps[0].ID != 1 || len(traps[0].Hosts) == 0 {
+		t.Fatalf("traps %+v", traps)
+	}
+	before, _ := os.ReadFile(filepath.Join(env.Policy.Dir, "before.conf"))
+	if !strings.Contains(string(before), "@beginsWith /admin/save") {
+		t.Fatal("the trap has no WAF rule")
+	}
+	// A ban made by the trap says so, with the rule.
+	err := env.Blocks.Block(context.Background(), block.Entry{IP: "203.0.113.1", Backends: []string{"ipset"}, By: "autoban", Via: "trap",
+		Reason: "auto-ban #1: trap 1: POST shop.example.ru/admin/save", At: time.Now(),
+		Rule: &block.Rule{Kind: "trap", Trap: 1, Site: "shop.example.ru", Path: "/admin/save", Offence: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, b = get(t, ts, c, "/ip/203.0.113.1")
+	if !strings.Contains(b, "automatically by the panel, path trap") || !strings.Contains(b, "trap #1") || !strings.Contains(b, "requests to /admin/save on shop.example.ru") {
+		t.Fatal("the address page does not name the trap that banned it")
+	}
+}

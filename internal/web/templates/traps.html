@@ -1,0 +1,54 @@
+{{define "content"}}
+{{$d := .Data}}
+<section class="card">
+  <p class="muted small">{{t "A trap bans whoever requests a path: an admin page nobody legitimate opens, a scanner's favourite file, a fake login. It works whether the auto-ban is on or not, bans through the auto-ban's backends (%s) and never touches the allow list or protected addresses." (join $d.Backends ", ")}}</p>
+  {{if $d.Loaded}}<p class="muted small">{{t "The panel adds a WAF rule for every trap: each request to the path gets 403 and goes to the audit log, even when no attack rule fires."}}</p>
+  {{else}}<div class="note warn">{{t "nginx does not load the panel's rules on this server, so a trap only sees requests that already land in the WAF's audit log: those an attack rule fired on. A plain visit to the path goes unnoticed."}}</div>{{end}}
+</section>
+
+<section class="card">
+  <h2>{{t "Traps"}}</h2>
+  {{if $d.Traps}}
+  <div class="scroll"><table>
+    <thead><tr><th>#</th><th>{{t "Path"}}</th><th>{{t "Ban"}}</th><th>{{t "Mode"}}</th><th>{{t "Hits"}}</th><th>{{t "Last"}}</th><th>{{t "Reason"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <tbody>{{range $d.Traps}}{{$h := index $d.Hits .ID}}<tr class="{{if .Disabled}}off{{end}}">
+      <td>{{.ID}}</td>
+      <td class="mono">{{.Path}}<br><small class="muted">{{if .Site}}{{.Site}}{{else}}{{t "every site"}}{{end}}</small></td>
+      <td class="nowrap">{{if eq .Duration 0}}<b>{{t "for good"}}</b>{{else}}{{dur .Duration}}{{end}}</td>
+      <td>{{if .Disabled}}<span class="badge">{{t "off"}}</span>{{else if .DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "banning"}}</span>{{end}}</td>
+      <td><a href="/attacks?{{if .Site}}site={{.Site}}&amp;{{end}}path={{.Path}}&amp;period=30d">{{$h.Hits}}</a></td>
+      <td class="nowrap">{{if $h.Hits}}{{ago $h.Last}}{{else}}—{{end}}</td>
+      <td class="small">{{.Reason}}<br><small class="muted">{{.By}} · {{dt .At}}</small></td>
+      {{if $.IsAdmin}}<td class="nowrap">
+        <form method="post" action="/traps/{{.ID}}/enabled" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="enabled" value="{{if .Disabled}}true{{else}}false{{end}}"><button class="btn">{{if .Disabled}}{{t "Enable"}}{{else}}{{t "Disable"}}{{end}}</button></form>
+        <form method="post" action="/traps/{{.ID}}/dry_run" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="dry_run" value="{{if .DryRun}}false{{else}}true{{end}}"><button class="btn">{{if .DryRun}}{{t "Start banning"}}{{else}}{{t "Dry run"}}{{end}}</button></form>
+        <form method="post" action="/traps/{{.ID}}/delete" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn danger">{{t "Delete"}}</button></form>
+      </td>{{end}}
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="muted">{{t "No traps yet. Open a path from the top paths of the overview or the analysis, or add one below."}}</p>{{end}}
+</section>
+
+{{if .IsAdmin}}
+<form class="card stack" method="post" action="/traps" id="new">
+  <h2>{{t "New trap"}}</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  {{if $d.Path}}
+  <div class="note {{if $d.Risky}}err{{else}}ok{{end}}">
+    {{t "In the last 7 days %d addresses requested paths containing %s, %d of them look like ordinary visitors." $d.Seen $d.Path $d.Visitors}}
+    {{if $d.Risky}}<br><b>{{t "Careful: a trap here would ban real visitors. Check the addresses first."}}</b>{{end}}
+    {{if $d.Seen}}<br><a href="/massban?{{if $d.Site}}site={{$d.Site}}&amp;{{end}}path={{$d.Path}}&amp;period=7d">⛔ {{t "Ban those %d addresses now…" $d.Seen}}</a>{{end}}
+  </div>
+  {{end}}
+  <div class="row">
+    <label>{{t "Site"}}<select name="site"><option value="">{{t "every site"}}</option>{{range $d.Sites}}<option value="{{.}}" {{if eq . $d.Site}}selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label>{{t "Path starts with"}}<input name="path" value="{{$d.Path}}" required placeholder="/wp-login.php" class="mono"></label>
+    <label>{{t "Ban for"}}<select name="ttl">{{range $d.Durations}}<option value="{{.Key}}" {{if eq .Key "0"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  </div>
+  <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required placeholder="{{t "e.g. nobody but scanners opens the old admin page"}}"></label>
+  <label class="radio"><input type="checkbox" name="dry_run"> {{t "Dry run: log and record whom it would ban, block nobody"}}</label>
+  <label class="radio"><input type="checkbox" name="confirm" value="yes" required> {{t "I understand that everyone who requests this path gets banned"}}</label>
+  <div class="actions"><button class="btn danger">🪤 {{t "Set the trap"}}</button></div>
+</form>
+{{end}}
+{{end}}

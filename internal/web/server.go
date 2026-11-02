@@ -158,6 +158,7 @@ func (s *Server) Handler() http.Handler {
 	view("GET /search", s.search)
 	view("GET /exclusions", s.exclusionsPage)
 	view("GET /autoban", s.autobanPage)
+	view("GET /traps", s.trapsPage)
 	view("GET /alerts", s.alerts)
 	view("GET /rules", s.rulesPage)
 	view("GET /channels", s.channelsPage)
@@ -186,6 +187,10 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /sites/{site}/mode", s.siteMode)
 	admin("POST /policy/apply", s.policyApply)
 	admin("POST /autoban", s.autobanSave)
+	admin("POST /traps", s.trapAdd)
+	admin("POST /traps/{id}/enabled", s.trapEnabled)
+	admin("POST /traps/{id}/dry_run", s.trapDryRun)
+	admin("POST /traps/{id}/delete", s.trapDelete)
 
 	return securityHeaders(s.allowFrom(mux))
 }
