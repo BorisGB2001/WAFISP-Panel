@@ -29,6 +29,7 @@
     <span class="navsep">{{t "Administration"}}</span>
     <a href="/users" class="{{if eq .Active "users"}}on{{end}}">{{t "Users"}}</a>
     <a href="/audit" class="{{if eq .Active "audit"}}on{{end}}">{{t "Audit"}}</a>
+    <a href="/update" class="{{if eq .Active "update"}}on{{end}}">{{t "Update"}}{{if .NewVersion}} <span class="count">1</span>{{end}}</a>
     {{end}}
   </nav>
   <div class="me">
@@ -46,6 +47,7 @@
   {{if .Flash}}<div class="note ok" role="status">{{.Flash}}</div>{{end}}
   {{if .Error}}<div class="note err" role="alert">{{.Error}}</div>{{end}}
   {{range .Warnings}}<div class="note err" role="alert">⚠ {{.}}</div>{{end}}
+  {{if and .NewVersion (ne .Active "update")}}<div class="note ok">⬆ {{t "Version %s is out (running %s)." .NewVersion .Version}} <a href="/update">{{t "What is new and update"}} →</a></div>{{end}}
   {{template "content" .}}
 </main>
 <script src="/static/charts.js"></script>

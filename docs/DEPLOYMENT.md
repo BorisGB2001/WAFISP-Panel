@@ -16,6 +16,18 @@ sh deploy/install.sh                        # upgrade: binary and unit only
 
 The installer checks the new binary with the new config (`-check`, read-only) before switching over and keeps the previous config as `wafisp.yaml.bak-<date>`. It never changes nginx's configuration.
 
+## Updates from the panel
+
+Every 6 hours the panel asks GitHub for the latest release (`update.repo`, the project's own by default). When there is a newer one, admins see a banner and the "Update" page with the release notes. "Update" does this:
+
+1. Download `wafisp-linux-amd64` and `wafisp-linux-amd64.sig` and check the ed25519 signature against the key built into the panel. A release signed with any other key is refused.
+2. Run the new binary with `-version` (it must say the release's version) and `-config … -check` (it must accept the current config).
+3. Start a one-shot unit with `systemd-run`, outside the panel's sandbox, which cannot write `/usr/local/bin`. That unit runs the old binary with `-apply-update`: it keeps the old binary as `/usr/local/bin/wafisp.prev`, puts the new one in place, restarts `wafisp`, and waits up to 90 seconds for systemd to report it active and for `/healthz` to answer 200. Otherwise it puts the old binary back.
+
+The result shows on the "Update" page and in the audit log. "Roll back" swaps `wafisp` and `wafisp.prev`. The check needs outbound HTTPS to github.com. Without it, or to turn the check off, set `update.disabled: true`. `/healthz` needs `http.listen`; without it the installer relies on systemd alone.
+
+Releases are signed by `make release` with the private key in `~/.config/wafisp-release/release.key`, which never leaves the maintainer's machine. To change keys, run `wafisp -genkey <file>`, put the printed public key in `internal/update/key.go`, and ship that version by hand once.
+
 ## Step 1: read-only
 
 Right after the install the panel only reads: the overview, the attack log, the analysis and the alerts work, and the `ipset` backend can block (it does not depend on nginx). Rules written to `rules_dir` have no effect yet, and `-check` says so. To stay at this step on purpose, set `nginx.include_file: none` and `nginx.reload: []`, and leave `modsec` out of `block.backends`: the panel then neither reloads nginx nor warns that its rules are not loaded.

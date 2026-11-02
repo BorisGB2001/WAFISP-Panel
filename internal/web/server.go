@@ -37,6 +37,7 @@ import (
 	"wafisp/internal/sites"
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
+	"wafisp/internal/update"
 )
 
 //go:embed templates/*.html static/*
@@ -58,6 +59,7 @@ type Server struct {
 	Blocks    *block.Manager
 	Autoban   *autoban.Engine
 	Health    *Health
+	Updater   *update.Updater // nil when the update check is off
 	Senders   map[string]notify.Sender
 	Stats     *stats.Registry
 	History   *history.History
@@ -174,6 +176,10 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /users/{name}/password", s.userPassword)
 	admin("POST /users/{name}/delete", s.userDelete)
 	admin("GET /audit", s.auditPage)
+	admin("GET /update", s.updatePage)
+	admin("POST /update/check", s.updateCheck)
+	admin("POST /update/install", s.updateInstall)
+	admin("POST /update/rollback", s.updateRollback)
 	admin("POST /blocks", s.blockAdd)
 	admin("POST /blocks/unblock", s.blockRemove)
 	admin("POST /blocks/expiry", s.blockExpiry)

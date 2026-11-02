@@ -12,7 +12,8 @@
 # boris.gb 2026-11-02 23:39 - 0.3.3: attack log pager fixed (filter queries were escaped), hide blocked/passed in the log, strict network format, /16 on the allow list, hide paths only allowed addresses used
 # boris.gb 2026-11-03 00:07 - 0.3.4: Show button aligned with the period, "today" period from midnight, deleting a trap offers to unblock the addresses it banned
 # boris.gb 2026-11-03 00:29 - 0.3.5: the period chosen in the selector is remembered until changed; "make release" tags and publishes a GitHub release
-VERSION ?= 0.3.5
+# boris.gb 2026-11-03 00:41 - 0.4.0: updates from GitHub (signed releases, one click, automatic rollback), release signing key
+VERSION ?= 0.4.0
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release
@@ -29,9 +30,13 @@ test:
 
 # boris.gb 2026-11-03 00:29 - release: tag v$(VERSION) on the current commit and publish a GitHub release with the
 # Linux binary and its checksum, so the version shows on GitHub. Needs a clean tree, the commit pushed, and gh.
+# boris.gb 2026-11-03 00:40 - the release is signed: the panel's updater installs only binaries this key signed.
+RELEASE_KEY ?= $(HOME)/.config/wafisp-release/release.key
+
 release: test linux
 	@test -z "$$(git status --porcelain)" || { echo "commit first" >&2; exit 1; }
 	cd bin && shasum -a 256 wafisp-linux-amd64 > wafisp-linux-amd64.sha256
+	go run ./cmd/wafisp -sign $(RELEASE_KEY) bin/wafisp-linux-amd64
 	git tag -a v$(VERSION) -m "$$(git log -1 --format=%s)"
 	git push origin v$(VERSION)
-	gh release create v$(VERSION) bin/wafisp-linux-amd64 bin/wafisp-linux-amd64.sha256 --title "v$(VERSION)" --notes "$$(git log -1 --format=%B | sed '/^Co-Authored-By/d')"
+	gh release create v$(VERSION) bin/wafisp-linux-amd64 bin/wafisp-linux-amd64.sha256 bin/wafisp-linux-amd64.sig --title "v$(VERSION)" --notes "$$(git log -1 --format=%B | sed '/^Co-Authored-By/d')"

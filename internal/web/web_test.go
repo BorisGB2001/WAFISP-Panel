@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
 	"io"
 	"log/slog"
@@ -28,6 +29,7 @@ import (
 	"wafisp/internal/sites"
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
+	"wafisp/internal/update"
 )
 
 type ruleSink struct{ got []config.Rule }
@@ -829,5 +831,65 @@ func TestPeriodRemembered(t *testing.T) {
 	}
 	if p := selected("/"); p != "today" {
 		t.Fatalf("a link changed the remembered period: %s", p)
+	}
+}
+
+func TestUpdatePage(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	pub, priv, _ := ed25519.GenerateKey(nil)
+	bin := []byte("new binary")
+	var gh *httptest.Server
+	gh = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/o/r/releases/latest":
+			fmt.Fprintf(w, `{"tag_name":"v9.9.9","body":"what is new","html_url":"%s/rel","assets":[{"name":"wafisp-linux-amd64","browser_download_url":"%s/bin"},{"name":"wafisp-linux-amd64.sig","browser_download_url":"%s/sig"}]}`, gh.URL, gh.URL, gh.URL)
+		case "/bin":
+			w.Write(bin)
+		case "/sig":
+			w.Write(update.Sign(priv, bin))
+		}
+	}))
+	defer gh.Close()
+	var ran []string
+	env.Updater = &update.Updater{Repo: "o/r", Current: "0.3.5", Dir: filepath.Join(env.Cfg.DataDir, "update"), ConfigPath: "/etc/wafisp/wafisp.yaml",
+		Exe: "/usr/local/bin/wafisp", PublicKey: pub, HTTP: http.DefaultClient, API: gh.URL,
+		Run: func(_ context.Context, name string, args ...string) ([]byte, error) {
+			ran = append(ran, name)
+			if len(args) == 1 && args[0] == "-version" {
+				return []byte("9.9.9"), nil
+			}
+			return nil, nil
+		}}
+	env.Version = "0.3.5"
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+	_, page := get(t, ts, c, "/update")
+	csrf := csrfRe.FindStringSubmatch(page)[1]
+	post := func(path string, v url.Values) {
+		v.Set("csrf", csrf)
+		resp, err := c.PostForm(ts.URL+path, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body(t, resp)
+	}
+	post("/update/check", url.Values{})
+	if _, b := get(t, ts, c, "/"); !strings.Contains(b, "Version 9.9.9 is out (running 0.3.5).") {
+		t.Fatal("no banner about the new version")
+	}
+	if _, b := get(t, ts, c, "/update"); !strings.Contains(b, "what is new") || !strings.Contains(b, "Update to 9.9.9") {
+		t.Fatal("the update page does not offer the release")
+	}
+	post("/update/install", url.Values{}) // no confirmation: nothing happens
+	if len(ran) != 0 {
+		t.Fatal("updated without the confirmation box")
+	}
+	post("/update/install", url.Values{"confirm": {"yes"}})
+	if len(ran) != 3 || ran[2] != "systemd-run" {
+		t.Fatalf("ran %v", ran)
+	}
+	if _, b := get(t, ts, c, "/audit"); !strings.Contains(b, "0.3.5 → 9.9.9") {
+		t.Fatal("the update is not in the audit log")
 	}
 }

@@ -53,6 +53,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 - **SIEM forwarding** of every event over syslog (UDP/TCP/TLS) as CEF or JSON.
 - **Access by source**: `web.allow_from` lets in only the listed addresses and networks.
 - **Users and audit**: `admin` and `viewer` roles, bcrypt, login throttling, CSRF protection, and an audit log of every action.
+- **Updates from GitHub**: the panel checks for a new release every few hours and shows what is new. An admin installs it with one click. The panel installs only releases signed with the project's key, checks the new version against the current config first, keeps the old binary, and puts it back if the new one does not come up. A rollback button is there too.
 - **English and Russian** UI.
 - `/healthz` and Prometheus `/metrics` on a separate local port.
 

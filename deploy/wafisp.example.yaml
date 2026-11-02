@@ -119,3 +119,9 @@ siem:
     address: siem.example.com:514
     format: json
     header: none
+
+# boris.gb 2026-11-03 00:41 - new releases on GitHub: the panel checks, an admin installs with one click (signed releases only).
+update:
+  # repo: BorisGB2001/WAFISP-Panel
+  # interval: 6h
+  # disabled: true        # no access to GitHub, or update by hand only

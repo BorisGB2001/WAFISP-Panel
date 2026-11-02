@@ -32,7 +32,9 @@ type page struct {
 	Warnings []string
 	// BlockedCount is shown next to "Blocked" in the menu.
 	BlockedCount int
-	Data         any
+	// NewVersion is a newer release, for the banner admins see.
+	NewVersion string
+	Data       any
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, rc *reqCtx, name string, p page) {
@@ -66,6 +68,11 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, rc *reqCtx, name
 	if rc != nil {
 		p.Warnings = s.Health.Problems()
 		p.BlockedCount = len(s.Blocks.Entries())
+		if p.IsAdmin && s.Updater != nil {
+			if st := s.Updater.State(); st.Available {
+				p.NewVersion = st.Latest.Version
+			}
+		}
 	}
 	p.Now = time.Now()
 	var buf bytes.Buffer

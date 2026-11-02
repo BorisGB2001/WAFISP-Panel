@@ -6,6 +6,9 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -40,6 +43,7 @@ import (
 	"wafisp/internal/sites"
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
+	"wafisp/internal/update"
 	"wafisp/internal/web"
 )
 
@@ -54,10 +58,28 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "log alerts instead of sending them; nothing goes to SIEM")
 	resetPassword := flag.String("reset-password", "", "set a random password for the named panel user, print it and exit")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	genKey := flag.String("genkey", "", "write a new release signing key to this file, print its public key and exit")
+	signWith := flag.String("sign", "", "sign the files given as arguments with this key file (each gets a .sig) and exit")
+	applyUpdate := flag.String("apply-update", "", "internal: install this staged release, restart the service, roll back if it fails")
+	rollback := flag.Bool("rollback", false, "internal: put the previous binary back and restart the service")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version)
+		return
+	}
+	if *genKey != "" || *signWith != "" {
+		if err := runSigning(*genKey, *signWith, flag.Args()); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *applyUpdate != "" || *rollback {
+		if err := runInstaller(*cfgPath, *applyUpdate); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 	if *parse != "" {
@@ -210,8 +232,15 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	go col.Run(ctx)
 
 	health := &web.Health{}
+	var upd *update.Updater
+	if !cfg.Update.Disabled {
+		exe, _ := os.Executable()
+		upd = &update.Updater{Repo: cfg.Update.Repo, Current: version, Dir: filepath.Join(cfg.DataDir, "update"), ConfigPath: cfgPath,
+			Exe: exe, PublicKey: releaseKey(), HTTP: &http.Client{Timeout: 5 * time.Minute}, Log: log}
+		go upd.Loop(ctx, cfg.Update.Interval.D())
+	}
 	ws := &web.Server{Cfg: cfg, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
-		Autoban: ban, Health: health,
+		Autoban: ban, Health: health, Updater: upd,
 		Senders: senders, Stats: st, History: hist, Rules: p, Log: log, Version: version, RuleFile: ruleFile}
 	if err := ws.Open(activeRules); err != nil {
 		return fmt.Errorf("web: %w", err)
@@ -672,4 +701,82 @@ func runResetPassword(cfgPath, name string) error {
 	}
 	fmt.Printf("new password for %s: %s\n", name, pw)
 	return nil
+}
+
+// releaseKey is the public half of the release signing key; the private
+// half stays on the maintainer's machine (make release signs with it).
+func releaseKey() ed25519.PublicKey {
+	k, err := update.ParsePublicKey(update.ReleaseKey)
+	if err != nil {
+		panic(err)
+	}
+	return k
+}
+
+// runSigning makes a key (-genkey) or signs release files (-sign).
+func runSigning(keyPath, signWith string, files []string) error {
+	if keyPath != "" {
+		if _, err := os.Stat(keyPath); err == nil {
+			return fmt.Errorf("%s exists; not overwriting a signing key", keyPath)
+		}
+		pub, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(keyPath, []byte(base64.StdEncoding.EncodeToString(priv)+"\n"), 0o600); err != nil {
+			return err
+		}
+		fmt.Println(base64.StdEncoding.EncodeToString(pub))
+		return nil
+	}
+	raw, err := os.ReadFile(signWith)
+	if err != nil {
+		return err
+	}
+	priv, err := update.ParsePrivateKey(string(raw))
+	if err != nil {
+		return err
+	}
+	if !priv.Public().(ed25519.PublicKey).Equal(releaseKey()) {
+		return errors.New("this key does not match the public key built into the panel")
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(f+".sig", update.Sign(priv, data), 0o644); err != nil {
+			return err
+		}
+		fmt.Println("signed", f)
+	}
+	return nil
+}
+
+// runInstaller is the one-shot unit started by the panel: it swaps the
+// binary, restarts the service and rolls back when the new one fails.
+func runInstaller(cfgPath, staged string) error {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	in := &update.Installer{Exe: exe, Dir: filepath.Join(cfg.DataDir, "update"), Service: "wafisp", PublicKey: releaseKey(),
+		From: version, HTTP: &http.Client{Timeout: 5 * time.Second}, Wait: 90 * time.Second, Every: 3 * time.Second}
+	if cfg.HTTP.Listen != "" {
+		in.Healthz = "http://" + cfg.HTTP.Listen + "/healthz"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	time.Sleep(2 * time.Second) // let the panel answer the click before it restarts
+	if staged == "" {
+		return in.Rollback(ctx)
+	}
+	return in.Install(ctx, staged)
 }

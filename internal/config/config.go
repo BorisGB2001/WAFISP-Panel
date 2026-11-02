@@ -46,6 +46,18 @@ type Config struct {
 	// SystemChannels receive the panel's own notices: auto-bans and
 	// problems with its rules (an update removed the nginx include, ...).
 	SystemChannels []string `yaml:"system_channels"`
+	Update         Update   `yaml:"update"`
+}
+
+// Update is the check for new releases on GitHub. Installing one is always
+// an admin's click in the panel; releases must carry a valid signature.
+type Update struct {
+	// Repo is owner/name on GitHub, the project's own by default.
+	Repo string `yaml:"repo"`
+	// Disabled turns the check off, e.g. on a host without access to GitHub.
+	Disabled bool `yaml:"disabled"`
+	// Interval between checks, 6h by default.
+	Interval Duration `yaml:"interval"`
 }
 
 // ModSec is where the audit logs are and where the panel's rules go.
@@ -280,6 +292,12 @@ func (c *Config) finish(dir string) error {
 		c.Web.SessionTTL = Duration(12 * time.Hour)
 	}
 	c.GeoIPDB = abs(c.GeoIPDB)
+	if c.Update.Repo == "" {
+		c.Update.Repo = "BorisGB2001/WAFISP-Panel"
+	}
+	if c.Update.Interval == 0 {
+		c.Update.Interval = Duration(6 * time.Hour)
+	}
 	if c.Retention == 0 {
 		c.Retention = Duration(30 * 24 * time.Hour)
 	}

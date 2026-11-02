@@ -1,0 +1,48 @@
+{{define "content"}}
+{{$d := .Data}}
+{{if $d.Off}}
+<section class="card"><p>{{t "The update check is off (update.disabled in the config). Update by hand: docs/DEPLOYMENT.md."}}</p></section>
+{{else}}{{$s := $d.S}}
+<section class="card">
+  <div class="cardhead">
+    <h2>{{t "Running %s" $s.Current}}</h2>
+    <form method="post" action="/update/check" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn">{{t "Check now"}}</button></form>
+  </div>
+  <p class="muted small">{{t "The panel asks GitHub (%s) for new releases every few hours. It installs one only when an admin clicks, and only if the release is signed with the project's key." $d.Repo}}
+  {{if not $s.Checked.IsZero}}{{t "Last check: %s." (ago $s.Checked)}}{{end}}</p>
+  {{if $s.CheckErr}}<div class="note err">{{t "Could not ask GitHub: %s" $s.CheckErr}}</div>{{end}}
+  {{with $s.Status}}
+    {{if eq .State "installing"}}<div class="note warn">⏳ {{t "An update is running (started %s). The panel restarts; reload the page in a minute." (ago .At)}}</div>
+    {{else if eq .State "ok"}}<div class="note ok">✓ {{if eq .Message "rollback"}}{{t "Rolled back to %s" .To}}{{else}}{{t "Updated from %s to %s" .From .To}}{{end}} · {{dt .At}}</div>
+    {{else if eq .State "rolled_back"}}<div class="note err">↩ {{t "Version %s did not start and was rolled back to %s: %s" .To .From .Message}} · {{dt .At}}</div>
+    {{else if eq .State "failed"}}<div class="note err">✗ {{t "The last update failed: %s" .Message}} · {{dt .At}}</div>{{end}}
+  {{end}}
+</section>
+
+{{with $s.Latest}}
+<section class="card stack">
+  <h2>{{if $s.Available}}⬆ {{t "Version %s is available" .Version}}{{else}}✓ {{t "This is the latest version (%s)" .Version}}{{end}}</h2>
+  <p class="muted small">{{dt .Published}} · <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{t "Release on GitHub"}}</a></p>
+  {{if .Notes}}<pre class="notes">{{.Notes}}</pre>{{end}}
+  {{if and $s.Available $.IsAdmin}}
+  {{if and .BinURL .SigURL}}
+  <form method="post" action="/update/install" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <p class="small">{{t "The panel downloads the release, checks its signature, its version and that it accepts the current config. Then it swaps the binary (keeping this one) and restarts. If the new version does not come up within 90 seconds, this one is put back."}}</p>
+    <label class="radio"><input type="checkbox" name="confirm" value="yes" required> {{t "Update now; the panel is unavailable for a few seconds"}}</label>
+    <div class="actions"><button class="btn primary">⬆ {{t "Update to %s" .Version}}</button></div>
+  </form>
+  {{else}}<div class="note warn">{{t "This release has no signed binary, so the panel cannot install it. Update by hand: docs/DEPLOYMENT.md."}}</div>{{end}}
+  {{end}}
+</section>
+{{end}}
+
+{{if and $s.HasPrev $.IsAdmin}}
+<section class="card">
+  <h2>{{t "Roll back"}}</h2>
+  <p class="muted small">{{t "The previous binary is kept. Rolling back swaps it with the running one and restarts the panel."}}</p>
+  <form method="post" action="/update/rollback" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn danger">↩ {{t "Roll back to the previous version"}}</button></form>
+</section>
+{{end}}
+{{end}}
+{{end}}
