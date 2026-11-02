@@ -95,6 +95,16 @@
 </form>
 {{end}}
 
+{{/* blockinfo: . is a block.Entry — who blocked, when, why, how long, how */}}
+{{define "blockinfo"}}<div class="note err blockinfo">⛔ <b>{{t "Blocked %s" .IP}}</b> {{dt .At}} · {{template "blockhow" .}}<br>
+{{t "Reason"}}: «{{.Reason}}» · {{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{t "until"}} {{dt .Expires}} ({{left .Expires}}){{end}} · {{join .Backends ", "}}{{if .Site}} · {{t "from an attack on %s" .Site}}{{end}}</div>{{end}}
+
+{{define "blockhow"}}{{if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically, by the auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
+
+{{/* allowinfo: . is a policy.Addr on the allow list */}}
+{{define "allowinfo"}}<div class="note ok">✓ <b>{{t "On the allow list: %s" .IP}}</b> {{dt .At}} · {{.By}} · «{{.Reason}}» · {{if .Expires.IsZero}}{{t "until removed"}}{{else}}{{t "until"}} {{dt .Expires}}{{end}}<br>
+<small>{{t "Its requests are logged as passed; the WAF does not block them and the panel never bans the address."}}</small></div>{{end}}
+
 {{define "backendhint"}}{{if eq . "ipset"}}{{t "dropped by the firewall on the web ports; instant, no reload"}}{{else if eq . "modsec"}}{{t "403 from ModSecurity, written to the site's audit log; reloads nginx; not in DetectionOnly sites"}}{{else if eq . "ispmgr"}}{{t "deny rule in ISPmanager's firewall, all ports, visible in ISPmanager"}}{{end}}{{end}}
 
 {{define "allowform"}}
@@ -104,7 +114,7 @@
   <label>{{t "IP or subnet"}}<input name="ip" value="{{.IP}}" required class="mono"></label>
   <label>{{t "Reason (goes to the audit log)"}}<input name="reason" required placeholder="{{t "e.g. office address, the editor's posts were blocked"}}"></label>
   <label>{{t "Duration"}}<select name="ttl">{{range .TTLs}}<option value="{{.Key}}" {{if eq .Key "0"}}selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
-  <p class="muted small">{{t "The WAF stops inspecting every request from this address on every site. Prefer an exclusion for one rule when you can."}}</p>
+  <p class="muted small">{{t "The WAF keeps logging this address on every site but never blocks it, and the panel never bans it. Prefer an exclusion for one rule when you can."}}</p>
   <button class="btn">{{t "Allow"}}</button>
 </form>
 {{end}}

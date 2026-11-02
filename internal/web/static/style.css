@@ -423,6 +423,10 @@ table.endpoints td.mono { word-break: break-all; }
 
 /* Blocked addresses: red in top lists and the attack log; a sub-item in the menu. */
 a.blocked, ol.top li.blocked .k a { color: var(--bad); font-weight: 600; }
+a.allowed { color: var(--good); font-weight: 600; }
+.urlline .bad { color: var(--bad); }
+.urlline .good { color: var(--good); }
+.note.blockinfo { margin: 10px 0; }
 ol.top li.blocked i { background: var(--bad-bg); }
 ol.top li.blocked i::after { background: var(--bad); }
 .side nav a.sub { padding-left: 24px; font-size: 13px; }

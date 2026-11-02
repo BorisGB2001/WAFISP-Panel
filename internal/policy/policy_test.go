@@ -26,7 +26,7 @@ func TestFiles(t *testing.T) {
 	}
 	before, after := s.Files("/etc/modsecurity/wafisp")
 	for _, want := range []string{
-		`SecRule REMOTE_ADDR "@ipMatchFromFile /etc/modsecurity/wafisp/allow.txt" "id:7710001,phase:1,pass,nolog,ctl:ruleEngine=Off"`,
+		`SecRule REMOTE_ADDR "@ipMatchFromFile /etc/modsecurity/wafisp/allow.txt" "id:7710001,phase:1,pass,nolog,ctl:ruleEngine=DetectionOnly"`,
 		`id:7710002,phase:1,deny,status:403`,
 		`SecRule REQUEST_HEADERS:Host "@rx ^(?:shop\.example\.com|www\.shop\.example\.com)(?::[0-9]+)?$" "id:7710100,phase:1,pass,nolog,t:lowercase,ctl:ruleEngine=DetectionOnly"`,
 		`SecRule REQUEST_HEADERS:Host "@rx ^(?:shop\.example\.com)(?::[0-9]+)?$" "id:7711003,phase:1,pass,nolog,t:none,t:lowercase,chain"`,
@@ -136,5 +136,15 @@ func TestCheckInclude(t *testing.T) {
 	os.Remove(inc)
 	if p := m.CheckInclude(inc); len(p) != 2 {
 		t.Fatalf("missing file and include: %v", p)
+	}
+}
+
+func TestAllowedFor(t *testing.T) {
+	s := State{Allow: []Addr{{IP: "203.0.113.0/24"}, {IP: "198.51.100.7"}}}
+	for ip, want := range map[string]bool{"203.0.113.9": true, "203.0.113.0/25": true, "203.0.0.0/16": true,
+		"198.51.100.7": true, "198.51.100.8": false, "::ffff:203.0.113.1": true, "2001:db8::1": false, "junk": false} {
+		if _, ok := s.AllowedFor(ip); ok != want {
+			t.Errorf("%s: %v", ip, ok)
+		}
 	}
 }

@@ -42,7 +42,8 @@ type Meta struct {
 	Expires time.Time `json:"expires,omitzero"`
 }
 
-// Addr is an allowed address: the WAF does not inspect its requests.
+// Addr is an allowed address: the WAF only logs its requests, never
+// blocks them, and the panel never bans it.
 type Addr struct {
 	IP string `json:"ip"`
 	Meta
@@ -147,6 +148,30 @@ func (x *Exclusion) Validate() error {
 func (x *Exclusion) runtime() bool { return x.Site != "" || x.Path != "" }
 
 // ValidMode checks an engine name.
+// AllowedFor returns the allow-list entry that covers ip, an address or a
+// subnet: the entry contains it, or a subnet ip overlaps the entry.
+func (s *State) AllowedFor(ip string) (Addr, bool) {
+	p, ok := prefixOf(ip)
+	if !ok {
+		return Addr{}, false
+	}
+	for _, a := range s.Allow {
+		if q, ok := prefixOf(a.IP); ok && q.Overlaps(p) {
+			return a, true
+		}
+	}
+	return Addr{}, false
+}
+
+func prefixOf(s string) (netip.Prefix, bool) {
+	if a, err := netip.ParseAddr(s); err == nil {
+		a = a.Unmap()
+		return netip.PrefixFrom(a, a.BitLen()), true
+	}
+	p, err := netip.ParsePrefix(s)
+	return p.Masked(), err == nil
+}
+
 func ValidMode(m string) bool { return m == "DetectionOnly" || m == "Off" }
 
 // Files renders before.conf and after.conf; dir is where the address
@@ -157,7 +182,7 @@ func (s *State) Files(dir string) (before, after string) {
 	b.WriteString(head)
 	a.WriteString(head)
 
-	fmt.Fprintf(&b, "SecRule REMOTE_ADDR \"@ipMatchFromFile %s/allow.txt\" \"id:%d,phase:1,pass,nolog,ctl:ruleEngine=Off\"\n", dir, idAllow)
+	fmt.Fprintf(&b, "SecRule REMOTE_ADDR \"@ipMatchFromFile %s/allow.txt\" \"id:%d,phase:1,pass,nolog,ctl:ruleEngine=DetectionOnly\"\n", dir, idAllow)
 	fmt.Fprintf(&b, "SecRule REMOTE_ADDR \"@ipMatchFromFile %s/deny.txt\" \"id:%d,phase:1,deny,status:403,log,auditlog,msg:'WAFISP Panel: address on the deny list',tag:'wafisp-panel'\"\n", dir, idDeny)
 
 	for i, m := range s.Modes {

@@ -196,7 +196,7 @@ func (s *Server) massBan(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		if err != nil {
 			continue
 		}
-		e := block.Entry{IP: ip, Backends: backends, By: rc.User.Name, Reason: reason, At: now}
+		e := block.Entry{IP: ip, Backends: backends, By: rc.User.Name, Reason: reason, At: now, Via: "massban"}
 		if len(x.Sites) == 1 {
 			e.Site = x.Sites[0]
 		}

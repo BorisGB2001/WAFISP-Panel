@@ -159,6 +159,10 @@ func (s *Server) blockAdd(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		flashRedirect(w, r, to, "", errText(r, err))
 		return
 	}
+	if a, ok := s.allowEntry(ip); ok {
+		flashRedirect(w, r, to, "", tr(r, "%s is on the allow list (%s, %s): take it off the list first", ip, a.IP, a.Reason))
+		return
+	}
 	reason := strings.TrimSpace(r.FormValue("reason"))
 	if reason == "" {
 		flashRedirect(w, r, to, "", tr(r, "Give a reason for the block — it goes to the audit log"))
@@ -235,7 +239,19 @@ func (s *Server) allowAdd(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		return
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "allow", detail)
-	flashRedirect(w, r, to, tr(r, "The WAF no longer inspects %s (%s)", ip, tr(r, ttl.Label)), "")
+	// An allowed address is never banned: lift the blocks it covers.
+	st := policy.State{Allow: []policy.Addr{a}}
+	for _, e := range s.Blocks.Entries() {
+		if _, ok := st.AllowedFor(e.IP); !ok {
+			continue
+		}
+		if err := s.Blocks.Unblock(ctx, e.IP); err != nil {
+			s.audit.Log(rc.User.Name, clientIP(r), "unblock.failed", e.IP+" (allow list) — "+err.Error())
+			continue
+		}
+		s.audit.Log(rc.User.Name, clientIP(r), "unblock", e.IP+": on the allow list")
+	}
+	flashRedirect(w, r, to, tr(r, "%s is on the allow list (%s): its requests are logged as passed, never blocked or banned", ip, tr(r, ttl.Label)), "")
 }
 
 func (s *Server) allowRemove(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
@@ -253,7 +269,7 @@ func (s *Server) allowRemove(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 		return
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "allow.remove", ip)
-	flashRedirect(w, r, to, tr(r, "The WAF inspects %s again", ip), "")
+	flashRedirect(w, r, to, tr(r, "%s is off the allow list: the WAF blocks it again when it attacks", ip), "")
 }
 
 // ---------- exclusions ----------

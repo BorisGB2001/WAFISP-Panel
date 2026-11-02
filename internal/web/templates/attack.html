@@ -5,10 +5,12 @@
 <div class="card verdict">
   <div class="stamp {{if $e.Denied}}deny{{else}}pass{{end}}">{{if $e.Denied}}{{t "Deny"}}{{else}}{{t "Pass"}}{{end}}</div>
   <div class="urlline"><span class="badge bad">{{cat $e.Category}}</span><span>{{$d.Scheme}}://{{$e.Host}}{{$e.URI}}</span></div>
+  {{if $d.IsBlocked}}{{template "blockinfo" $d.Blocked}}{{end}}
+  {{if $d.Allowed}}{{template "allowinfo" $d.Allow}}{{end}}
   <dl class="kv">
-    <dt>{{t "Source"}}</dt><dd class="mono"><a href="/ip/{{$e.SrcIP}}">{{$e.SrcIP}}</a>:{{$e.SrcPort}} {{$e.Country}}
-      {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked: %s" $d.Blocked.Reason}}</span>{{end}}
-      {{if $d.Allowed}}<span class="badge warn">{{t "on the allow list"}}</span>{{end}}</dd>
+    <dt>{{t "Source"}}</dt><dd class="mono"><a href="/ip/{{$e.SrcIP}}" class="{{if $d.IsBlocked}}blocked{{else if $d.Allowed}}allowed{{end}}">{{$e.SrcIP}}</a>:{{$e.SrcPort}} {{$e.Country}}
+      {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}
+      {{if $d.Allowed}}<span class="badge good">✓ {{t "on the allow list"}}</span>{{end}}</dd>
     <dt>{{t "Site"}}</dt><dd><a href="/attacks?site={{$e.Site}}">{{$e.Site}}</a> · WAF {{if $d.SiteMode}}<b>{{$d.SiteMode}}</b> ({{t "panel override"}}){{else}}{{or $d.SiteWAF "—"}}{{end}}</dd>
     <dt>{{t "Anomaly score"}}</dt><dd>{{template "risk" $e.Score}} · {{t "response %d" $e.Status}}</dd>
     <dt>{{t "Time"}}</dt><dd>{{dt $e.Time}}</dd>
@@ -47,9 +49,20 @@
 {{if .IsAdmin}}
 <div class="grid2">
   <section class="card">
+    {{if $d.IsBlocked}}
+    <h2>{{t "Unblock"}}</h2>
+    {{template "blockinfo" $d.Blocked}}
+    <form method="post" action="/blocks/unblock" class="stack">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="ip" value="{{$d.Blocked.IP}}"><input type="hidden" name="back" value="/attacks/{{$e.ID}}">
+      <button class="btn">{{t "Unblock %s" $d.Blocked.IP}}</button>
+    </form>
+    {{else if $d.Allowed}}
     <h2>{{t "Block %s" $e.SrcIP}}</h2>
-    {{if $d.IsBlocked}}<p>{{t "Already blocked by %s until %s via %s." $d.Blocked.By (dt $d.Blocked.Expires) (join $d.Blocked.Backends ", ")}}</p>{{end}}
+    <p class="muted">{{t "The address is on the allow list and cannot be blocked. Take it off the list first."}}</p>
+    {{else}}
+    <h2>{{t "Block %s" $e.SrcIP}}</h2>
     {{template "blockform" (dict "CSRF" .CSRF "IP" $e.SrcIP "Site" $e.Site "Back" (print "/attacks/" $e.ID) "Backends" $d.Backends "Default" $d.DefaultBackends "TTLs" $d.TTLs)}}
+    {{end}}
   </section>
   <section class="card">
     <h2>{{t "Let it through"}}</h2>

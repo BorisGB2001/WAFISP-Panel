@@ -49,6 +49,8 @@ type Entry struct {
 	Expires  time.Time `json:"expires,omitzero"`
 	// Site is where the attack came from, if blocked from an event.
 	Site string `json:"site,omitempty"`
+	// Via is how the block was made when not by hand: "autoban" or "massban".
+	Via string `json:"via,omitempty"`
 }
 
 type Manager struct {

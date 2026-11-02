@@ -336,7 +336,7 @@ func runAutoban(ctx context.Context, ban *autoban.Engine, blocks *block.Manager,
 				break
 			}
 			s := ban.Settings()
-			e := block.Entry{IP: d.IP, Backends: s.Backends, By: "autoban", Reason: reason, At: time.Now(), Site: d.Site}
+			e := block.Entry{IP: d.IP, Backends: s.Backends, By: "autoban", Via: "autoban", Reason: reason, At: time.Now(), Site: d.Site}
 			if d.Duration > 0 {
 				e.Expires = e.At.Add(d.Duration)
 			}
@@ -366,16 +366,9 @@ func runAutoban(ctx context.Context, ban *autoban.Engine, blocks *block.Manager,
 }
 
 func allowed(pol *policy.Manager, ip string) bool {
-	a, err := netip.ParseAddr(ip)
-	if err != nil {
-		return false
-	}
-	for _, x := range pol.State().Allow {
-		if p, err := config.ParsePrefix(x.IP); err == nil && p.Contains(a) {
-			return true
-		}
-	}
-	return false
+	st := pol.State()
+	_, ok := st.AllowedFor(ip)
+	return ok
 }
 
 // checkHealth looks every five minutes at what an update of ISPmanager or

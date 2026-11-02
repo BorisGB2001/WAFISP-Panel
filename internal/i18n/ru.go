@@ -538,7 +538,7 @@ var ru = map[string]string{
 	"SafeLine keeps a separate order for allow rules and for deny rules and checks each list from the top. Conditions in one box must all hold; any of the boxes is enough.": "SafeLine хранит отдельный порядок для разрешающих и для запрещающих правил и проверяет каждый список сверху. Условия в одном блоке должны выполняться все; достаточно любого из блоков.",
 	"The order has not changed":                                  "Порядок не изменился",
 	"The order was changed on this page and is not applied yet.": "Порядок изменён на странице, но ещё не применён.",
-	"Allow list":     "Разрешения",
+	"Allow list":     "Белый список",
 	"Deny list":      "Запреты",
 	"Built-in rules": "Встроенные правила",
 	"Matching requests skip every other check of the WAF, so keep these rules narrow.": "Совпавшие запросы проходят мимо всех остальных проверок WAF, поэтому делайте эти правила узкими.",

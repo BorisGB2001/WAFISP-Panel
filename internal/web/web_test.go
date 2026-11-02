@@ -543,3 +543,49 @@ func TestAllowFrom(t *testing.T) {
 		}
 	}
 }
+
+func TestAllowListNeverBans(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+	_, page := get(t, ts, c, "/blocks")
+	csrf := csrfRe.FindStringSubmatch(page)[1]
+	post := func(path string, v url.Values) string {
+		v.Set("csrf", csrf)
+		resp, err := c.PostForm(ts.URL+path, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body(t, resp)
+		return resp.Header.Get("Location")
+	}
+
+	// A blocked address shows who, when and why.
+	post("/blocks", url.Values{"ip": {"198.51.100.7"}, "reason": {"sqli probes"}, "ttl": {"0"}, "backend": {"ipset"}})
+	if _, b := get(t, ts, c, "/ip/198.51.100.7"); !strings.Contains(b, "manually by admin") || !strings.Contains(b, "sqli probes") {
+		t.Fatal("the address page does not say who blocked it and why")
+	}
+	// Putting it on the allow list lifts the block.
+	post("/allow", url.Values{"ip": {"198.51.100.0/24"}, "reason": {"partner"}, "ttl": {"0"}})
+	if _, ok := env.Blocks.Lookup("198.51.100.7"); ok || len(env.ipset.ips) != 0 {
+		t.Fatal("still blocked after going on the allow list")
+	}
+	// And it cannot be blocked again, alone or as part of a subnet.
+	for _, ip := range []string{"198.51.100.7", "198.51.100.0/25"} {
+		post("/blocks", url.Values{"ip": {ip}, "reason": {"again"}, "ttl": {"24h"}, "backend": {"ipset"}})
+		if len(env.Blocks.Entries()) != 0 {
+			t.Fatalf("%s blocked although allowed", ip)
+		}
+	}
+	if _, b := get(t, ts, c, "/ip/198.51.100.7"); !strings.Contains(b, "On the allow list: 198.51.100.0/24") {
+		t.Fatal("the address page does not show the allow-list entry")
+	}
+	if !strings.Contains(env.Policy.State().Allow[0].IP, "198.51.100.0/24") {
+		t.Fatal("allow list not saved")
+	}
+	before, _ := os.ReadFile(filepath.Join(env.Policy.Dir, "before.conf"))
+	if !strings.Contains(string(before), "ctl:ruleEngine=DetectionOnly") {
+		t.Fatal("allowed addresses must be logged, not ignored")
+	}
+}

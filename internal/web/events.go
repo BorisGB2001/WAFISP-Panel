@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"wafisp/internal/event"
+	"wafisp/internal/policy"
 	"wafisp/internal/store"
 )
 
@@ -157,7 +158,7 @@ func (s *Server) attackDetail(w http.ResponseWriter, r *http.Request, rc *reqCtx
 	site, _ := s.Sites.Get(ev.Site)
 	s.render(w, r, rc, "attack.html", page{Title: "Event", Active: "attacks", Data: map[string]any{
 		"E": ev, "ReqHTML": httpHighlight(req.String(), payload), "ReqRaw": req.String(), "Scheme": scheme,
-		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ev.SrcIP), "Backends": s.Blocks.Names(),
+		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ev.SrcIP), "Allow": allowOf(s, ev.SrcIP), "Backends": s.Blocks.Names(),
 		"DefaultBackends": s.Cfg.Block.Default, "TTLs": blockTTLs, "SiteMode": s.Policy.State().ModeOf(ev.Site),
 		"SiteWAF": site.WAF,
 	}})
@@ -177,19 +178,14 @@ func matchedValue(data string) string {
 }
 
 func (s *Server) allowed(ip string) bool {
-	a, err := netip.ParseAddr(ip)
-	if err != nil {
-		return false
-	}
-	for _, x := range s.Policy.State().Allow {
-		if p, err := netip.ParsePrefix(x.IP); err == nil && p.Contains(a) {
-			return true
-		}
-		if x.IP == ip {
-			return true
-		}
-	}
-	return false
+	_, ok := s.allowEntry(ip)
+	return ok
+}
+
+// allowEntry is the allow-list entry that covers ip, if any.
+func (s *Server) allowEntry(ip string) (policy.Addr, bool) {
+	st := s.Policy.State()
+	return st.AllowedFor(ip)
 }
 
 // markBlocked sets Extra of every top-list address that is blocked.
@@ -257,7 +253,12 @@ func (s *Server) ipPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	s.render(w, r, rc, "ip.html", page{Title: "Address", Active: "attacks", Data: map[string]any{
 		"IP": ip, "F": f, "A": a, "Recent": recent, "First": first, "Last": last, "Country": country,
 		"Sites": a.Sites.top(20), "Rules": a.Rules.top(20), "Paths": a.Paths.top(20), "RuleMsg": a.RuleMsg,
-		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ip), "Backends": s.Blocks.Names(),
+		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ip), "Allow": allowOf(s, ip), "Backends": s.Blocks.Names(),
 		"DefaultBackends": s.Cfg.Block.Default, "TTLs": blockTTLs, "Periods": periods,
 	}})
+}
+
+func allowOf(s *Server, ip string) policy.Addr {
+	a, _ := s.allowEntry(ip)
+	return a
 }

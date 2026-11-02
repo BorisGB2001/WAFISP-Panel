@@ -1,13 +1,14 @@
 {{define "content"}}
 {{$d := .Data}}{{$a := $d.A}}
 <div class="card verdict">
-  <div class="urlline"><span class="mono"><b>{{$d.IP}}</b></span> {{$d.Country}}
+  <div class="urlline"><span class="mono {{if $d.IsBlocked}}bad{{else if $d.Allowed}}good{{end}}"><b>{{$d.IP}}</b></span> {{$d.Country}}
     {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}
-    {{if $d.Allowed}}<span class="badge warn">{{t "on the allow list"}}</span>{{end}}</div>
+    {{if $d.Allowed}}<span class="badge good">✓ {{t "on the allow list"}}</span>{{end}}</div>
+  {{if $d.IsBlocked}}{{template "blockinfo" $d.Blocked}}{{end}}
+  {{if $d.Allowed}}{{template "allowinfo" $d.Allow}}{{end}}
   <dl class="kv">
     <dt>{{t "Events"}}</dt><dd><a href="/attacks?ip={{$d.IP}}&amp;period={{$d.F.Period}}">{{$a.Total}}</a> · {{t "blocked %d, passed %d" $a.Denied $a.Passed}}</dd>
     <dt>{{t "Seen"}}</dt><dd>{{dt $d.First}} — {{dt $d.Last}}</dd>
-    {{if $d.IsBlocked}}<dt>{{t "Blocked"}}</dt><dd>{{$d.Blocked.Reason}} · {{$d.Blocked.By}} · {{if $d.Blocked.Expires.IsZero}}{{t "for good"}}{{else}}{{t "until"}} {{dt $d.Blocked.Expires}}{{end}} · {{join $d.Blocked.Backends ", "}}</dd>{{end}}
   </dl>
 </div>
 
@@ -32,6 +33,9 @@
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="ip" value="{{$d.Blocked.IP}}"><input type="hidden" name="back" value="/ip/{{$d.IP}}">
       <button class="btn">{{t "Unblock %s" $d.Blocked.IP}}</button>
     </form>
+    {{else if $d.Allowed}}
+    <h2>{{t "Block"}}</h2>
+    <p class="muted">{{t "The address is on the allow list and cannot be blocked. Take it off the list first."}}</p>
     {{else}}
     <h2>{{t "Block"}}</h2>
     {{template "blockform" (dict "CSRF" .CSRF "IP" $d.IP "Back" (print "/ip/" $d.IP) "Backends" $d.Backends "Default" $d.DefaultBackends "TTLs" $d.TTLs)}}
@@ -42,7 +46,7 @@
     {{if $d.Allowed}}
     <form method="post" action="/allow/remove" class="stack">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="ip" value="{{$d.IP}}"><input type="hidden" name="back" value="/ip/{{$d.IP}}">
-      <button class="btn">{{t "Inspect %s again" $d.IP}}</button>
+      <button class="btn">{{t "Take %s off the allow list" $d.IP}}</button>
     </form>
     {{else}}{{template "allowform" (dict "CSRF" .CSRF "IP" $d.IP "Back" (print "/ip/" $d.IP) "TTLs" $d.TTLs)}}{{end}}
   </section>

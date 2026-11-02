@@ -33,7 +33,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
   - `ipset`: the panel's own set, dropped by one iptables rule on the web ports. Instant, no nginx reload.
   - `modsec`: a deny list in the panel's ModSecurity rules. Requests get 403 and land in the site's audit log.
   - `ispmgr`: a deny rule in ISPmanager's firewall, added through `mgrctl`, so it is visible in ISPmanager.
-- **Blocked list**: every blocked address with its backends, reason and expiry. From there you can change the term, unblock, or move the address to the allow list.
+- **Blocked list**: every blocked address with its backends, reason and expiry. Every blocked address shows in red, and its address and event pages say who blocked it (by hand, mass ban or auto-ban), when and why. From there you can change the term, unblock, or move the address to the allow list.
 - **One-click ban**: "for a day" / "for good" next to every address in the log and the top attackers.
 - **Ban by attack**: from an event, block every address that triggered the same rule, class or path in the chosen period. You see the list first and confirm it. The panel warns you when the list looks like ordinary visitors rather than attackers.
 - **Auto-ban** of addresses that keep attacking. It triggers on N denied requests within a window, or on one denied request of a dangerous class (RCE, web shell, Java by default). A repeat offender is blocked for longer each time: a day, then a week, then for good. Auto-ban starts off and in dry-run mode, where it only records whom it would block.
@@ -41,7 +41,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 
 **Tune the WAF**
 
-- **Allow list**: addresses the WAF does not inspect.
+- **Allow list**: trusted addresses are never blocked or banned. The WAF still logs their requests, marked as passed. Adding an address lifts its blocks, and the panel refuses to block it until it is taken off the list.
 - **Exclusions** that switch CRS rules off where they break legitimate requests, scoped to a site, a path prefix and one request variable.
 - **Site modes**: switch a site to DetectionOnly or turn it off, without touching ISPmanager.
 - Every rule change goes through `nginx -t` first and is rolled back if nginx refuses it.
