@@ -30,13 +30,16 @@ type filter struct {
 }
 
 var periods = []struct{ Key, Label string }{
-	{"1h", "1 hour"}, {"24h", "24 hours"}, {"7d", "7 days"}, {"30d", "30 days"}, {"all", "All time"},
+	{"1h", "1 hour"}, {"today", "Today"}, {"24h", "24 hours"}, {"7d", "7 days"}, {"30d", "30 days"}, {"all", "All time"},
 }
 
 func periodStart(p string, now time.Time) time.Time {
 	switch p {
 	case "1h":
 		return now.Add(-time.Hour)
+	case "today": // since local midnight
+		y, m, d := now.Date()
+		return time.Date(y, m, d, 0, 0, 0, 0, now.Location())
 	case "7d":
 		return now.AddDate(0, 0, -7)
 	case "30d":

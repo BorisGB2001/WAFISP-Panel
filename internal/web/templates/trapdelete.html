@@ -1,0 +1,18 @@
+{{define "content"}}
+{{$d := .Data}}{{$t := $d.Trap}}
+<form class="card stack" method="post" action="/traps/{{$t.ID}}/delete">
+  <h2>{{t "Delete trap #%d" $t.ID}}</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="mono">{{if eq $t.Match "contains"}}<small class="muted">{{t "contains"}}</small> {{end}}{{$t.Path}} <small class="muted">{{if $t.Site}}{{$t.Site}}{{else}}{{t "every site"}}{{end}}</small></p>
+  {{if $d.Banned}}
+  <p>{{t "The trap banned %d addresses that are still blocked:" (len $d.Banned)}}</p>
+  <div class="scroll"><table>
+    <thead><tr><th>IP</th><th>{{t "When"}}</th><th>{{t "Until"}}</th></tr></thead>
+    <tbody>{{range $d.Banned}}<tr><td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a></td><td class="nowrap">{{dt .At}}</td><td class="nowrap">{{if .Expires.IsZero}}{{t "for good"}}{{else}}{{dt .Expires}}{{end}}</td></tr>{{end}}</tbody>
+  </table></div>
+  <label class="radio"><input type="radio" name="unban" value="yes" checked> <b>{{t "Unblock them"}}</b> — {{t "the trap was a mistake or is no longer needed"}}</label>
+  <label class="radio"><input type="radio" name="unban" value="no"> <b>{{t "Keep them blocked"}}</b> — {{t "their bans run out as set"}}</label>
+  {{end}}
+  <div class="actions"><button class="btn danger">{{t "Delete the trap"}}</button><a class="btn" href="/traps">{{t "Cancel"}}</a></div>
+</form>
+{{end}}

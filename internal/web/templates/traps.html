@@ -10,19 +10,21 @@
   <h2>{{t "Traps"}}</h2>
   {{if $d.Traps}}
   <div class="scroll"><table>
-    <thead><tr><th>#</th><th>{{t "Path"}}</th><th>{{t "Ban"}}</th><th>{{t "Mode"}}</th><th>{{t "Hits"}}</th><th>{{t "Last"}}</th><th>{{t "Reason"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
+    <thead><tr><th>#</th><th>{{t "Path"}}</th><th>{{t "Ban"}}</th><th>{{t "Mode"}}</th><th>{{t "Hits"}}</th><th>{{t "Banned now"}}</th><th>{{t "Last"}}</th><th>{{t "Reason"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
     <tbody>{{range $d.Traps}}{{$h := index $d.Hits .ID}}<tr class="{{if .Disabled}}off{{end}}">
       <td>{{.ID}}</td>
       <td class="mono">{{if eq .Match "contains"}}<small class="muted">{{t "contains"}}</small> {{end}}{{.Path}}<br><small class="muted">{{if .Site}}{{.Site}}{{else}}{{t "every site"}}{{end}}</small></td>
       <td class="nowrap">{{if eq .Duration 0}}<b>{{t "for good"}}</b>{{else}}{{dur .Duration}}{{end}}</td>
       <td>{{if .Disabled}}<span class="badge">{{t "off"}}</span>{{else if .DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "banning"}}</span>{{end}}</td>
       <td>{{$h.Hits}}</td>
+      {{$n := index $d.Banned .ID}}<td>{{if $n}}<a href="/blocks">{{$n}}</a>{{else}}0{{end}}</td>
       <td class="nowrap">{{if $h.Hits}}{{ago $h.Last}}{{else}}—{{end}}</td>
       <td class="small">{{.Reason}}<br><small class="muted">{{.By}} · {{dt .At}}</small></td>
       {{if $.IsAdmin}}<td class="nowrap">
         <form method="post" action="/traps/{{.ID}}/enabled" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="enabled" value="{{if .Disabled}}true{{else}}false{{end}}"><button class="btn">{{if .Disabled}}{{t "Enable"}}{{else}}{{t "Disable"}}{{end}}</button></form>
         <form method="post" action="/traps/{{.ID}}/dry_run" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="dry_run" value="{{if .DryRun}}false{{else}}true{{end}}"><button class="btn">{{if .DryRun}}{{t "Start banning"}}{{else}}{{t "Dry run"}}{{end}}</button></form>
-        <form method="post" action="/traps/{{.ID}}/delete" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn danger">{{t "Delete"}}</button></form>
+        {{if $n}}<a class="btn danger" href="/traps/{{.ID}}/delete">{{t "Delete"}}…</a>
+        {{else}}<form method="post" action="/traps/{{.ID}}/delete" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn danger">{{t "Delete"}}</button></form>{{end}}
       </td>{{end}}
     </tr>{{end}}</tbody>
   </table></div>

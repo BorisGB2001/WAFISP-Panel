@@ -10,7 +10,8 @@
 # boris.gb 2026-11-02 21:40 - 0.3.1: allowed addresses green in top attackers, trapped paths red, path menu on the address page events
 # boris.gb 2026-11-02 21:47 - 0.3.2: traps on a part of the path (contains), remembered "hide blocked" / "hide trapped" switches
 # boris.gb 2026-11-02 23:39 - 0.3.3: attack log pager fixed (filter queries were escaped), hide blocked/passed in the log, strict network format, /16 on the allow list, hide paths only allowed addresses used
-VERSION ?= 0.3.3
+# boris.gb 2026-11-03 00:07 - 0.3.4: Show button aligned with the period, "today" period from midnight, deleting a trap offers to unblock the addresses it banned
+VERSION ?= 0.3.4
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test

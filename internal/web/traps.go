@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"wafisp/internal/block"
 	"wafisp/internal/policy"
 )
 
@@ -18,8 +19,14 @@ import (
 func (s *Server) trapsPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	st := s.Policy.State()
 	site, path, match := r.URL.Query().Get("site"), r.URL.Query().Get("path"), r.URL.Query().Get("match")
+	banned := map[int]int{}
+	for _, e := range s.Blocks.Entries() {
+		if id := bannedBy(e); id > 0 {
+			banned[id]++
+		}
+	}
 	data := map[string]any{
-		"Traps": st.Traps, "Hits": s.Autoban.TrapHits(), "Sites": s.siteNames(), "Durations": banDurations,
+		"Traps": st.Traps, "Hits": s.Autoban.TrapHits(), "Banned": banned, "Sites": s.siteNames(), "Durations": banDurations,
 		"Site": site, "Path": path, "Match": match, "Backends": s.Autoban.Settings().Backends, "Loaded": s.Cfg.Nginx.IncludeFile != "none",
 	}
 	if path != "" {
@@ -91,6 +98,32 @@ func (s *Server) trapDryRun(w http.ResponseWriter, r *http.Request, rc *reqCtx) 
 	})
 }
 
+// bannedBy is the trap that made block e, or 0.
+func bannedBy(e block.Entry) int {
+	if e.Via == "trap" && e.Rule != nil {
+		return e.Rule.Trap
+	}
+	return 0
+}
+
+// trapDeletePage asks whether the addresses the trap banned stay banned.
+func (s *Server) trapDeletePage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	st := s.Policy.State()
+	t := st.Trap(id)
+	if t == nil {
+		flashRedirect(w, r, "/traps", "", tr(r, "no trap %d", id))
+		return
+	}
+	var banned []block.Entry
+	for _, e := range s.Blocks.Entries() {
+		if bannedBy(e) == id {
+			banned = append(banned, e)
+		}
+	}
+	s.render(w, r, rc, "trapdelete.html", page{Title: "Delete trap", Active: "traps", Data: map[string]any{"Trap": t, "Banned": banned}})
+}
+
 func (s *Server) trapDelete(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
@@ -108,7 +141,21 @@ func (s *Server) trapDelete(w http.ResponseWriter, r *http.Request, rc *reqCtx) 
 		return
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "trap.delete", fmt.Sprint("#", id))
-	flashRedirect(w, r, "/traps", tr(r, "Trap %d deleted", id), "")
+	if r.FormValue("unban") != "yes" {
+		flashRedirect(w, r, "/traps", tr(r, "Trap %d deleted", id), "")
+		return
+	}
+	// The trap is gone, so are its bans: no hunting the addresses down later.
+	removed, err := s.Blocks.UnblockMany(ctx, func(e block.Entry) bool { return bannedBy(e) == id })
+	for _, e := range removed {
+		s.audit.Log(rc.User.Name, clientIP(r), "unblock", fmt.Sprintf("%s: trap #%d deleted", e.IP, id))
+	}
+	if err != nil {
+		s.audit.Log(rc.User.Name, clientIP(r), "unblock.failed", fmt.Sprintf("trap #%d — %s", id, err))
+		flashRedirect(w, r, "/traps", "", tr(r, "Trap %d deleted, but the unblock did not go through everywhere: %s", id, err))
+		return
+	}
+	flashRedirect(w, r, "/traps", tr(r, "Trap %d deleted, %d addresses it banned are unblocked", id, len(removed)), "")
 }
 
 func (s *Server) trapChange(w http.ResponseWriter, r *http.Request, rc *reqCtx, action string, change func(*policy.Trap)) {

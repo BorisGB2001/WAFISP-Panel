@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -741,5 +742,62 @@ func TestAttackLogPagerAndSwitches(t *testing.T) {
 	c.Get(ts.URL + "/pref/hide_allowed/on?next=/")
 	if _, b = get(t, ts, c, "/"); strings.Contains(b, "/editor/save") || !strings.Contains(b, "/admin/save") {
 		t.Fatal("hide_allowed does not hide paths only allowed addresses used")
+	}
+}
+
+func TestTrapDeleteUnbans(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+	_, page := get(t, ts, c, "/traps")
+	csrf := csrfRe.FindStringSubmatch(page)[1]
+	post := func(path string, v url.Values) {
+		v.Set("csrf", csrf)
+		resp, err := c.PostForm(ts.URL+path, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body(t, resp)
+	}
+	for range 2 {
+		post("/traps", url.Values{"path": {"/.env"}, "match": {"contains"}, "ttl": {"0"}, "reason": {"scanners"}, "confirm": {"yes"}})
+		post("/traps", url.Values{"path": {"/wp-login.php"}, "ttl": {"0"}, "reason": {"scanners"}, "confirm": {"yes"}})
+	}
+	if n := len(env.Policy.State().Traps); n != 2 {
+		t.Fatalf("%d traps", n)
+	}
+	ban := func(ip string, trap int) block.Entry {
+		return block.Entry{IP: ip, Backends: []string{"ipset"}, By: "autoban", Via: "trap", At: time.Now(), Reason: "trap",
+			Rule: &block.Rule{Kind: "trap", Trap: trap, Path: "/.env"}}
+	}
+	env.Blocks.BlockMany(context.Background(), []block.Entry{ban("203.0.113.10", 1), ban("203.0.113.11", 1), ban("203.0.113.12", 2),
+		{IP: "203.0.113.13", Backends: []string{"ipset"}, By: "admin", At: time.Now(), Reason: "by hand"}})
+
+	// A trap that banned someone asks first and lists the addresses.
+	if _, b := get(t, ts, c, "/traps/1/delete"); !strings.Contains(b, "203.0.113.11") || strings.Contains(b, "203.0.113.12") || !strings.Contains(b, `name="unban" value="yes" checked`) {
+		t.Fatal("the delete page does not list the trap's bans")
+	}
+	post("/traps/1/delete", url.Values{"unban": {"yes"}})
+	var left []string
+	for _, e := range env.Blocks.Entries() {
+		left = append(left, e.IP)
+	}
+	slices.Sort(left)
+	if !slices.Equal(left, []string{"203.0.113.12", "203.0.113.13"}) || len(env.ipset.ips) != 2 {
+		t.Fatalf("left blocked: %v, ipset %v", left, env.ipset.ips)
+	}
+	// Keeping them blocked leaves the bans alone.
+	post("/traps/2/delete", url.Values{"unban": {"no"}})
+	if len(env.Policy.State().Traps) != 0 || len(env.Blocks.Entries()) != 2 {
+		t.Fatal("keep blocked did not keep the bans")
+	}
+
+	// "Today" counts from midnight.
+	if _, b := get(t, ts, c, "/?period=today"); !strings.Contains(b, `value="today" selected`) {
+		t.Fatal("no today period")
+	}
+	if p := periodStart("today", time.Date(2026, 11, 3, 15, 4, 0, 0, time.Local)); !p.Equal(time.Date(2026, 11, 3, 0, 0, 0, 0, time.Local)) {
+		t.Fatalf("today starts at %v", p)
 	}
 }

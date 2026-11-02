@@ -281,6 +281,38 @@ func (m *Manager) Unblock(ctx context.Context, ip string) error {
 	return err
 }
 
+// UnblockMany removes every entry that match picks, with one sync per
+// backend, and returns them.
+func (m *Manager) UnblockMany(ctx context.Context, match func(Entry) bool) ([]Entry, error) {
+	m.mu.Lock()
+	m.load()
+	var removed []Entry
+	var affected []string
+	m.entries = slices.DeleteFunc(m.entries, func(x Entry) bool {
+		if !match(x) {
+			return false
+		}
+		removed = append(removed, x)
+		for _, b := range x.Backends {
+			if !slices.Contains(affected, b) {
+				affected = append(affected, b)
+			}
+		}
+		return true
+	})
+	m.mu.Unlock()
+	if len(removed) == 0 {
+		return nil, nil
+	}
+	err := m.sync(ctx, affected)
+	m.mu.Lock()
+	if serr := m.save(); serr != nil && err == nil {
+		err = serr
+	}
+	m.mu.Unlock()
+	return removed, err
+}
+
 // Sync puts every backend in line with the entries. Errors of one backend
 // do not stop the others.
 func (m *Manager) Sync(ctx context.Context) error { return m.sync(ctx, nil) }

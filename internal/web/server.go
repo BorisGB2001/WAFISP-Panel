@@ -191,6 +191,7 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /traps", s.trapAdd)
 	admin("POST /traps/{id}/enabled", s.trapEnabled)
 	admin("POST /traps/{id}/dry_run", s.trapDryRun)
+	admin("GET /traps/{id}/delete", s.trapDeletePage)
 	admin("POST /traps/{id}/delete", s.trapDelete)
 
 	return securityHeaders(s.allowFrom(mux))
