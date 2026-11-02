@@ -67,7 +67,7 @@
 {{end}}
 
 {{define "iplist"}}
-{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li class="{{if .Extra}}blocked{{end}}"><span class="k mono"><a href="/ip/{{.Key}}" {{if .Extra}}title="{{t "blocked"}}"{{end}}>{{.Key}}</a>{{if .Extra}} <span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li class="{{.Extra}}"><span class="k mono"><a href="/ip/{{.Key}}" class="{{.Extra}}" {{if .Extra}}title="{{tx .Extra}}"{{end}}>{{.Key}}</a>{{if eq .Extra "blocked"}} <span class="badge bad">⛔ {{t "blocked"}}</span>{{else if eq .Extra "allowed"}} <span class="badge good">✓ {{t "on the allow list"}}</span>{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
 {{else}}<p class="muted">{{t "No data"}}</p>{{end}}
 {{end}}
 
@@ -108,13 +108,16 @@
 
 {{/* pathlist: .L is a top list keyed site+path; .Admin shows the ban links */}}
 {{define "pathlist"}}{{$admin := .Admin}}
-{{if .L}}<ol class="top">{{$max := (index .L 0).Count}}{{range .L}}{{$sp := splitPath .Key}}<li><span class="k"><details class="pathmenu"><summary title="{{.Key}}">{{if .Key}}{{.Key}}{{else}}—{{end}}</summary><span class="menu">
-  <a href="/attacks?site={{index $sp 0}}&amp;path={{index $sp 1}}&amp;period=7d">📋 {{t "Events on this path"}}</a>
-  {{if $admin}}<a href="/massban?site={{index $sp 0}}&amp;path={{index $sp 1}}&amp;period=7d">⛔ {{t "Ban everyone who requested it…"}}</a>
-  <a href="/traps?site={{index $sp 0}}&amp;path={{index $sp 1}}#new">🪤 {{t "Trap: ban whoever requests it from now on…"}}</a>{{end}}
-</span></details></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{if .L}}<ol class="top">{{$max := (index .L 0).Count}}{{range .L}}{{$sp := splitPath .Key}}<li class="{{if .Extra}}trapped{{end}}"><span class="k">{{template "pathmenu" (dict "Site" (index $sp 0) "Path" (index $sp 1) "Label" .Key "Trap" .Extra "Admin" $admin)}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
 {{else}}<p class="muted">{{t "No data"}}</p>{{end}}
 {{end}}
+
+{{/* pathmenu: one site+path with its menu; .Trap is the id of the trap on it, if any */}}
+{{define "pathmenu"}}<details class="pathmenu{{if .Trap}} trapped{{end}}"><summary title="{{.Site}}{{.Path}}">{{if .Label}}{{.Label}}{{else}}—{{end}}</summary><span class="menu">
+  <a href="/attacks?site={{.Site}}&amp;path={{.Path}}&amp;period=7d">📋 {{t "Events on this path"}}</a>
+  {{if .Admin}}<a href="/massban?site={{.Site}}&amp;path={{.Path}}&amp;period=7d">⛔ {{t "Ban everyone who requested it…"}}</a>
+  {{if .Trap}}<a href="/traps">🪤 {{t "Open trap #%s" .Trap}}</a>{{else}}<a href="/traps?site={{.Site}}&amp;path={{.Path}}#new">🪤 {{t "Trap: ban whoever requests it from now on…"}}</a>{{end}}{{end}}
+</span></details>{{if .Trap}} <a href="/traps" class="badge bad" title="{{t "Whoever requests this path gets banned"}}">🪤 {{t "trap #%s" .Trap}}</a>{{end}}{{end}}
 
 {{/* allowinfo: . is a policy.Addr on the allow list */}}
 {{define "allowinfo"}}<div class="note ok">✓ <b>{{t "On the allow list: %s" .IP}}</b> {{dt .At}} · {{.By}} · «{{.Reason}}» · {{if .Expires.IsZero}}{{t "until removed"}}{{else}}{{t "until"}} {{dt .Expires}}{{end}}<br>

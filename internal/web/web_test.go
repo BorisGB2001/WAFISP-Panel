@@ -628,6 +628,19 @@ func TestTraps(t *testing.T) {
 	if !strings.Contains(string(before), "@beginsWith /admin/save") {
 		t.Fatal("the trap has no WAF rule")
 	}
+	// The trapped path is marked in the top paths and on the address page.
+	if _, b := get(t, ts, c, "/?period=7d"); !strings.Contains(b, `details class="pathmenu trapped"`) || !strings.Contains(b, "trap #1") {
+		t.Fatal("the trapped path is not marked in the top paths")
+	}
+	if _, b := get(t, ts, c, "/ip/203.0.113.2"); !strings.Contains(b, `details class="pathmenu trapped"`) || !strings.Contains(b, "/massban?site=shop.example.ru&amp;path=%2fadmin%2fsave") {
+		t.Fatal("the address page's events have no path menu")
+	}
+	// An allowed address is green in the top attackers.
+	resp, _ = c.PostForm(ts.URL+"/allow", url.Values{"csrf": {csrf}, "ip": {"203.0.113.3"}, "reason": {"partner"}, "ttl": {"0"}})
+	body(t, resp)
+	if _, b := get(t, ts, c, "/?period=7d"); !strings.Contains(b, `<li class="allowed">`) {
+		t.Fatal("the allowed address is not marked in the top attackers")
+	}
 	// A ban made by the trap says so, with the rule.
 	err := env.Blocks.Block(context.Background(), block.Entry{IP: "203.0.113.1", Backends: []string{"ipset"}, By: "autoban", Via: "trap",
 		Reason: "auto-ban #1: trap 1: POST shop.example.ru/admin/save", At: time.Now(),

@@ -59,7 +59,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		"IPs":        s.markBlocked(a.IPs.top(10)),
 		"Sites":      a.Sites.top(10),
 		"Rules":      rules,
-		"Paths":      a.Paths.top(10),
+		"Paths":      s.markTraps(a.Paths.top(10)),
 		"Countries":  a.Countries.top(10),
 		"Files":      s.Collector.Files(),
 		"Stored":     s.Store.Len(),
@@ -197,6 +197,29 @@ func (s *Server) markBlocked(list []kv) []kv {
 	for i := range list {
 		if _, ok := s.Blocks.Lookup(list[i].Key); ok {
 			list[i].Extra = "blocked"
+		} else if s.allowed(list[i].Key) {
+			list[i].Extra = "allowed"
+		}
+	}
+	return list
+}
+
+// trapOf is the id of the enabled trap that site+path falls into, or "".
+func trapOf(traps []policy.Trap, site, path string) string {
+	for _, t := range traps {
+		if t.Matches(site, path) {
+			return strconv.Itoa(t.ID)
+		}
+	}
+	return ""
+}
+
+// markTraps sets Extra of every top-list path (site+path) a trap covers.
+func (s *Server) markTraps(list []kv) []kv {
+	traps := s.Policy.State().Traps
+	for i := range list {
+		if j := strings.Index(list[i].Key, "/"); j >= 0 {
+			list[i].Extra = trapOf(traps, list[i].Key[:j], list[i].Key[j:])
 		}
 	}
 	return list
@@ -219,7 +242,7 @@ func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	s.render(w, r, rc, "analysis.html", page{Title: "Analysis", Active: "analysis", Data: map[string]any{
 		"F": f, "Periods": periods, "Sites": s.siteNames(), "MinIPs": minIPs,
 		"Candidates": candidates(s.Store, f, minIPs), "Attackers": attackers, "Rules": rules,
-		"Paths": a.Paths.top(30), "Countries": a.Countries.top(30), "Total": a.Total,
+		"Paths": s.markTraps(a.Paths.top(30)), "Countries": a.Countries.top(30), "Total": a.Total,
 	}})
 }
 
@@ -250,14 +273,19 @@ func (s *Server) ipPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		return true
 	})
 	blocked, isBlocked := s.Blocks.Lookup(ip)
+	traps := s.Policy.State().Traps
+	trapped := map[string]string{}
+	for _, e := range recent {
+		trapped[e.Site+e.Path] = trapOf(traps, e.Site, e.Path)
+	}
 	country := ""
 	if len(recent) > 0 {
 		country = recent[0].Country
 	}
 	s.render(w, r, rc, "ip.html", page{Title: "Address", Active: "attacks", Data: map[string]any{
 		"IP": ip, "F": f, "A": a, "Recent": recent, "First": first, "Last": last, "Country": country,
-		"Sites": a.Sites.top(20), "Rules": a.Rules.top(20), "Paths": a.Paths.top(20), "RuleMsg": a.RuleMsg,
-		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ip), "Allow": allowOf(s, ip), "Backends": s.Blocks.Names(),
+		"Sites": a.Sites.top(20), "Rules": a.Rules.top(20), "Paths": s.markTraps(a.Paths.top(20)), "RuleMsg": a.RuleMsg,
+		"Blocked": blocked, "IsBlocked": isBlocked, "Allowed": s.allowed(ip), "Allow": allowOf(s, ip), "Trapped": trapped, "Backends": s.Blocks.Names(),
 		"DefaultBackends": s.Cfg.Block.Default, "TTLs": blockTTLs, "Periods": periods,
 	}})
 }

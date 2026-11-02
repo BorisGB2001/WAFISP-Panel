@@ -332,4 +332,8 @@ var ruWAFISP = map[string]string{
 	"requests to %s on %s":                           "запросы на %s, сайт: %s",
 	"trap #%d":                                       "ловушка №%d",
 	"Path Trap":                                      "Ловушка на пути",
+	"trap #%s":                                       "ловушка №%s",
+	"Open trap #%s":                                  "Открыть ловушку №%s",
+	"Whoever requests this path gets banned":         "Каждый, кто запросит этот путь, будет забанен",
+	"allowed":                                        "в белом списке",
 }

@@ -20,7 +20,7 @@
   <section class="card"><h3>{{t "Paths"}}</h3>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
   <section class="card">
     <h3>{{t "Latest events"}}</h3>
-    <table class="compact"><tbody>{{range $d.Recent}}<tr><td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td><td class="url">{{.Site}} {{cut .Path 50}}</td><td>{{template "verdict" .Denied}}</td></tr>{{else}}<tr><td class="muted">{{t "No events"}}</td></tr>{{end}}</tbody></table>
+    <table class="compact"><tbody>{{range $d.Recent}}<tr><td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td><td class="url">{{template "pathmenu" (dict "Site" .Site "Path" .Path "Label" (print .Site (cut .Path 50)) "Trap" (index $d.Trapped (print .Site .Path)) "Admin" $.IsAdmin)}}</td><td>{{template "verdict" .Denied}}</td></tr>{{else}}<tr><td class="muted">{{t "No events"}}</td></tr>{{end}}</tbody></table>
   </section>
 </div>
 
