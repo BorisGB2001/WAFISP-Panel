@@ -20,6 +20,7 @@
 <div class="card">
   <div class="cardhead">
     <h2>{{t "Found: %d" $d.Total}}</h2>
+    {{template "hidetoggle" (dict "Name" "log_hide_blocked" "On" $d.HideBlocked "Next" $d.Self "Label" (t "hide blocked addresses"))}}{{template "hidetoggle" (dict "Name" "log_hide_passed" "On" $d.HidePassed "Next" $d.Self "Label" (t "hide passed"))}}
     <div class="actions">
       {{if and .IsAdmin (or $f.Rule $f.Cat $f.Path $f.Var)}}<a class="btn danger" href="/massban?{{$d.CSV}}" title="{{t "Block every address in this list"}}">⛔ {{t "Ban everyone in this list…"}}</a>{{end}}
       <a class="btn" href="/attacks.csv?{{$d.CSV}}">{{t "Export CSV"}}</a>

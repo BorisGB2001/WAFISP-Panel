@@ -9,7 +9,8 @@
 # boris.gb 2026-11-02 21:26 - 0.3.0: path traps (ban whoever requests a path), path menu in the top paths, the rule behind every automatic ban
 # boris.gb 2026-11-02 21:40 - 0.3.1: allowed addresses green in top attackers, trapped paths red, path menu on the address page events
 # boris.gb 2026-11-02 21:47 - 0.3.2: traps on a part of the path (contains), remembered "hide blocked" / "hide trapped" switches
-VERSION ?= 0.3.2
+# boris.gb 2026-11-02 23:39 - 0.3.3: attack log pager fixed (filter queries were escaped), hide blocked/passed in the log, strict network format, /16 on the allow list, hide paths only allowed addresses used
+VERSION ?= 0.3.3
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test

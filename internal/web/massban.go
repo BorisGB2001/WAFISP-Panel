@@ -162,7 +162,7 @@ func (s *Server) massBanPage(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 func (s *Server) massBan(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	r.ParseForm()
 	f := parseFilter(r, "7d")
-	again := "/massban?" + f.Query(0)
+	again := "/massban?" + string(f.Query(0))
 	if f.Rule == "" && f.Cat == "" && f.Path == "" && f.Var == "" && f.IP == "" {
 		flashRedirect(w, r, again, "", tr(r, "Choose an attack first: a rule, a class, a path or a variable"))
 		return

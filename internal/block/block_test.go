@@ -17,7 +17,8 @@ func TestNormalize(t *testing.T) {
 	prot := []netip.Prefix{netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("198.51.100.10/32")}
 	for in, want := range map[string]string{
 		"203.0.113.7":      "203.0.113.7",
-		"203.0.113.7/24":   "203.0.113.0/24",
+		"203.0.113.0/24":   "203.0.113.0/24",
+		" 203.0.0.0/16 ":   "203.0.0.0/16",
 		"::ffff:203.0.1.1": "203.0.1.1",
 		"2001:db8::1":      "2001:db8::1",
 	} {
@@ -26,10 +27,33 @@ func TestNormalize(t *testing.T) {
 			t.Errorf("%s: got %q %v, want %q", in, got, err, want)
 		}
 	}
-	for _, bad := range []string{"203.0.0.0/8", "10.1.2.3", "127.0.0.1", "100.100.1.1", "198.51.100.0/24", "192.0.2.0/24", "x"} {
+	for _, bad := range []string{"203.0.0.0/8", "10.1.2.3", "127.0.0.1", "100.100.1.1", "198.51.100.0/24", "192.0.2.0/24", "x",
+		"203.0.113.7/24", "203.0.113.0/33", "203.0.113.0/", "203.0.113", "203.0.113.0/24/1"} {
 		if _, err := normalize(bad, "192.0.2.50", prot); err == nil {
 			t.Errorf("%s accepted", bad)
 		}
+	}
+}
+
+func TestNormalizeAllow(t *testing.T) {
+	m := &Manager{}
+	for in, want := range map[string]string{
+		"10.6.250.110":  "10.6.250.110",
+		"10.6.0.0/24":   "10.6.0.0/24",
+		"10.6.0.0/16":   "10.6.0.0/16",
+		"2001:db8::/48": "2001:db8::/48",
+	} {
+		if got, err := m.NormalizeAllow(in); err != nil || got != want {
+			t.Errorf("%s: got %q %v, want %q", in, got, err, want)
+		}
+	}
+	for _, bad := range []string{"10.6.5.0/16", "10.6.0.0/14", "10.0.0.0/8", "2001:db8::/32", "0.0.0.0/16", "10.6.0.0/16x"} {
+		if _, err := m.NormalizeAllow(bad); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+	if _, err := m.NormalizeAllow("10.6.5.0/16"); err == nil || !strings.Contains(err.Error(), "did you mean 10.6.0.0/16") {
+		t.Errorf("no hint for an unaligned network: %v", err)
 	}
 }
 

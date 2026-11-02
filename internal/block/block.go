@@ -131,14 +131,34 @@ func (m *Manager) Normalize(s, requester string) (string, error) {
 	return normalize(strings.TrimSpace(s), requester, m.Protected)
 }
 
-func normalize(s, requester string, protected []netip.Prefix) (string, error) {
-	var p netip.Prefix
+// parseNet reads an address or a subnet as typed in a form. A subnet must
+// be written by its network address: 10.6.5.0/16 is refused rather than
+// silently widened to 10.6.0.0/16, so nobody blocks or allows more than
+// they meant.
+func parseNet(s string) (netip.Prefix, error) {
+	s = strings.TrimSpace(s)
 	if a, err := netip.ParseAddr(s); err == nil {
-		p = netip.PrefixFrom(a.Unmap(), a.Unmap().BitLen())
-	} else if p, err = netip.ParsePrefix(s); err != nil {
-		return "", i18n.Errorf("%q is neither an IP address nor a subnet", s)
+		a = a.Unmap()
+		return netip.PrefixFrom(a, a.BitLen()), nil
 	}
-	p = p.Masked()
+	p, err := netip.ParsePrefix(s)
+	if err != nil {
+		return netip.Prefix{}, i18n.Errorf("%q is neither an IP address nor a subnet. Examples: 203.0.113.5, 203.0.113.0/24, 10.6.0.0/16", s)
+	}
+	if p.Addr().Is4In6() {
+		p = netip.PrefixFrom(p.Addr().Unmap(), p.Bits()-96)
+	}
+	if m := p.Masked(); m != p {
+		return netip.Prefix{}, i18n.Errorf("%s is not a network address: a /%d network starts at %s — did you mean %s?", s, p.Bits(), m.Addr(), m)
+	}
+	return p, nil
+}
+
+func normalize(s, requester string, protected []netip.Prefix) (string, error) {
+	p, err := parseNet(s)
+	if err != nil {
+		return "", err
+	}
 	a := p.Addr()
 	switch {
 	case a.Is4() && p.Bits() < 16, a.Is6() && p.Bits() < 48:
@@ -348,16 +368,12 @@ func (m *Manager) Run(ctx context.Context, onExpire func(ip string, err error)) 
 // NormalizeAllow parses an address or subnet for the allow list: the
 // WAF does not inspect its requests, so it may be narrow but not wide.
 func (m *Manager) NormalizeAllow(s string) (string, error) {
-	var p netip.Prefix
-	s = strings.TrimSpace(s)
-	if a, err := netip.ParseAddr(s); err == nil {
-		p = netip.PrefixFrom(a.Unmap(), a.Unmap().BitLen())
-	} else if p, err = netip.ParsePrefix(s); err != nil {
-		return "", i18n.Errorf("%q is neither an IP address nor a subnet", s)
+	p, err := parseNet(s)
+	if err != nil {
+		return "", err
 	}
-	p = p.Masked()
-	if a := p.Addr(); (a.Is4() && p.Bits() < 24) || (a.Is6() && p.Bits() < 56) || a.IsUnspecified() {
-		return "", i18n.Errorf("The subnet is too wide for the allow list: at most /24 for IPv4 and /56 for IPv6")
+	if a := p.Addr(); (a.Is4() && p.Bits() < 16) || (a.Is6() && p.Bits() < 48) || a.IsUnspecified() {
+		return "", i18n.Errorf("The subnet is too wide for the allow list: at most /16 for IPv4 and /48 for IPv6")
 	}
 	if p.IsSingleIP() {
 		return p.Addr().String(), nil

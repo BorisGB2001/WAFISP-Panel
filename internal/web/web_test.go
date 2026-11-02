@@ -669,3 +669,77 @@ func TestTraps(t *testing.T) {
 		t.Fatal("the address page does not name the trap that banned it")
 	}
 }
+
+func TestAttackLogPagerAndSwitches(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	now := time.Now()
+	for i := range 120 {
+		env.Store.Add(&event.Event{ID: fmt.Sprint("p", i), Site: "shop.example.ru", Host: "shop.example.ru", Time: now.Add(-time.Duration(i+2) * time.Minute),
+			SrcIP: "192.0.2.9", Method: "GET", URI: fmt.Sprint("/scan", i), Status: 200, Category: "xss"})
+	}
+	for i := range 5 {
+		env.Store.Add(&event.Event{ID: fmt.Sprint("office", i), Site: "shop.example.ru", Host: "shop.example.ru", Time: now, SrcIP: "10.6.1.5",
+			Method: "POST", URI: "/editor/save", Status: 200, Category: "xss"})
+	}
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+
+	// The pager links carry their parameters unescaped and open the next page.
+	_, b := get(t, ts, c, "/attacks?site=shop.example.ru")
+	next := regexp.MustCompile(`href="/attacks\?([^"]*)">Next`).FindStringSubmatch(b)
+	if next == nil || !strings.Contains(next[1], "page=2") || !strings.Contains(next[1], "site=shop.example.ru") {
+		t.Fatalf("Next link: %v", next)
+	}
+	if _, b = get(t, ts, c, "/attacks?"+strings.ReplaceAll(next[1], "&amp;", "&")); !strings.Contains(b, "Page 2 of 3") {
+		t.Fatal("Next does not open page 2")
+	}
+
+	// Hide passed: only the four denied events of the test server stay.
+	c.Get(ts.URL + "/pref/log_hide_passed/on?next=/attacks")
+	if _, b = get(t, ts, c, "/attacks"); !strings.Contains(b, "Found: 4") {
+		t.Fatalf("passed events still shown: %s", regexp.MustCompile(`Found: \d+`).FindString(b))
+	}
+	c.Get(ts.URL + "/pref/log_hide_passed/off?next=/")
+
+	// Hide blocked addresses.
+	_, page := get(t, ts, c, "/blocks")
+	csrf := csrfRe.FindStringSubmatch(page)[1]
+	post := func(path string, v url.Values) string {
+		v.Set("csrf", csrf)
+		resp, err := c.PostForm(ts.URL+path, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body(t, resp)
+		return resp.Header.Get("Location")
+	}
+	post("/blocks", url.Values{"ip": {"192.0.2.0/24"}, "reason": {"scanner"}, "ttl": {"0"}, "backend": {"ipset"}})
+	if len(env.Blocks.Entries()) != 1 {
+		t.Fatal("not blocked")
+	}
+	c.Get(ts.URL + "/pref/log_hide_blocked/on?next=/")
+	if _, b = get(t, ts, c, "/attacks"); !strings.Contains(b, "Found: 9") || strings.Contains(b, "192.0.2.9") {
+		t.Fatal("events of a blocked address still shown")
+	}
+
+	// A network must be written by its first address; the allow list takes /16.
+	post("/allow", url.Values{"ip": {"10.6.1.0/16"}, "reason": {"office"}, "ttl": {"0"}})
+	post("/blocks", url.Values{"ip": {"198.51.100.7/24"}, "reason": {"x"}, "ttl": {"0"}, "backend": {"ipset"}})
+	if len(env.Policy.State().Allow) != 0 || len(env.Blocks.Entries()) != 1 {
+		t.Fatal("an unaligned network was accepted")
+	}
+	post("/allow", url.Values{"ip": {"10.6.0.0/16"}, "reason": {"office"}, "ttl": {"0"}})
+	if a := env.Policy.State().Allow; len(a) != 1 || a[0].IP != "10.6.0.0/16" {
+		t.Fatalf("a /16 is not on the allow list: %v", a)
+	}
+
+	// Top paths can leave out what only allowed addresses requested.
+	if _, b = get(t, ts, c, "/"); !strings.Contains(b, "/editor/save") {
+		t.Fatal("the office path is missing from the top paths")
+	}
+	c.Get(ts.URL + "/pref/hide_allowed/on?next=/")
+	if _, b = get(t, ts, c, "/"); strings.Contains(b, "/editor/save") || !strings.Contains(b, "/admin/save") {
+		t.Fatal("hide_allowed does not hide paths only allowed addresses used")
+	}
+}

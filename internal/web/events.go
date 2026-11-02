@@ -39,7 +39,7 @@ func (s *Server) siteNames() []string {
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	f := parseFilter(r, "24h")
 	now := time.Now()
-	a := aggregate(s.Store, f, now)
+	a := aggregate(s.Store, f, now, s.allowed)
 	cats := a.Cats.top(20)
 	keys := make([]string, len(cats))
 	vals := make([]int64, len(cats))
@@ -60,8 +60,8 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		"IPs":         s.topIPs(a.IPs, 10, pref(r, "hide_blocked")),
 		"Sites":       a.Sites.top(10),
 		"Rules":       rules,
-		"Paths":       s.topPaths(a.Paths, 10, pref(r, "hide_trapped")),
-		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "Self": r.URL.RequestURI(),
+		"Paths":       s.topPaths(a, 10, pref(r, "hide_trapped"), pref(r, "hide_allowed")),
+		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "HideAllowed": pref(r, "hide_allowed"), "Self": r.URL.RequestURI(),
 		"Countries":  a.Countries.top(10),
 		"Files":      s.Collector.Files(),
 		"Stored":     s.Store.Len(),
@@ -79,13 +79,35 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 
 const pageSize = 50
 
+// logView is the attack log's filter plus the remembered switches: hide
+// the addresses already blocked, hide the passed requests.
+func (s *Server) logView(r *http.Request, f filter) func(*store.Summary) bool {
+	hideBlocked, hidePassed := pref(r, "log_hide_blocked"), pref(r, "log_hide_passed")
+	blocked := map[string]bool{}
+	return func(e *store.Summary) bool {
+		if !f.match(e) || hidePassed && !e.Denied {
+			return false
+		}
+		if hideBlocked {
+			b, seen := blocked[e.SrcIP]
+			if !seen {
+				_, b = s.Blocks.Lookup(e.SrcIP)
+				blocked[e.SrcIP] = b
+			}
+			return !b
+		}
+		return true
+	}
+}
+
 func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	f := parseFilter(r, "24h")
+	show := s.logView(r, f)
 	var rows []store.Summary
 	total := 0
 	from := (f.Page - 1) * pageSize
 	s.Store.Scan(f.since(), func(e *store.Summary) bool {
-		if !f.match(e) {
+		if !show(e) {
 			return true
 		}
 		if total >= from && total < from+pageSize {
@@ -107,6 +129,8 @@ func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		"F": f, "Rows": rows, "Total": total, "Pages": pages, "Periods": periods, "Cats": categoryOptions(),
 		"Sites": s.siteNames(), "Prev": f.Query(f.Page - 1), "Next": f.Query(f.Page + 1), "CSV": f.Query(0),
 		"DefaultBackends": s.Cfg.Block.Default, "Blocked": s.Blocks.Blocked(ips), "Allowed": allowed,
+		// The switches go back to page 1: the old page may no longer exist.
+		"HideBlocked": pref(r, "log_hide_blocked"), "HidePassed": pref(r, "log_hide_passed"), "Self": "/attacks?" + string(f.Query(0)),
 	}})
 }
 
@@ -114,6 +138,7 @@ const csvMax = 50000
 
 func (s *Server) attacksCSV(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	f := parseFilter(r, "24h")
+	show := s.logView(r, f)
 	var buf bytes.Buffer
 	buf.WriteString("\uFEFF") // Excel opens UTF-8 CSV correctly with a BOM
 	cw := csv.NewWriter(&buf)
@@ -121,7 +146,7 @@ func (s *Server) attacksCSV(w http.ResponseWriter, r *http.Request, rc *reqCtx) 
 	cw.Write([]string{"time", "site", "event_id", "src_ip", "country", "method", "path", "status", "action", "score", "category", "rules", "variables", "message"})
 	n := 0
 	s.Store.Scan(f.since(), func(e *store.Summary) bool {
-		if !f.match(e) {
+		if !show(e) {
 			return true
 		}
 		cw.Write([]string{e.Time.Local().Format(time.DateTime), e.Site, e.ID, e.SrcIP, e.Country, e.Method, e.Path,
@@ -216,13 +241,13 @@ func (s *Server) topIPs(c counter, n int, hide bool) []kv {
 	return list[:min(n, len(list))]
 }
 
-// topPaths is the top n paths, marked; with hide the trapped ones are left
-// out.
-func (s *Server) topPaths(c counter, n int, hide bool) []kv {
-	list := s.markTraps(c.top(n + 500))
-	if hide {
-		list = slices.DeleteFunc(list, func(x kv) bool { return x.Extra != "" })
-	}
+// topPaths is the top n paths of a, marked; hideTrapped leaves out the
+// trapped ones, hideAllowed those only allow-listed addresses requested.
+func (s *Server) topPaths(a *agg, n int, hideTrapped, hideAllowed bool) []kv {
+	list := s.markTraps(a.Paths.top(n + 500))
+	list = slices.DeleteFunc(list, func(x kv) bool {
+		return hideTrapped && x.Extra != "" || hideAllowed && a.PathsOutside[x.Key] == 0
+	})
 	return list[:min(n, len(list))]
 }
 
@@ -255,7 +280,7 @@ func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	if minIPs <= 0 {
 		minIPs = 3
 	}
-	a := aggregate(s.Store, f, time.Now())
+	a := aggregate(s.Store, f, time.Now(), s.allowed)
 	attackers := s.topIPs(a.IPs, 30, pref(r, "hide_blocked"))
 	rules := a.Rules.top(30)
 	for i := range rules {
@@ -264,8 +289,8 @@ func (s *Server) analysis(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	s.render(w, r, rc, "analysis.html", page{Title: "Analysis", Active: "analysis", Data: map[string]any{
 		"F": f, "Periods": periods, "Sites": s.siteNames(), "MinIPs": minIPs,
 		"Candidates": candidates(s.Store, f, minIPs), "Attackers": attackers, "Rules": rules,
-		"Paths": s.topPaths(a.Paths, 30, pref(r, "hide_trapped")), "Countries": a.Countries.top(30), "Total": a.Total,
-		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "Self": r.URL.RequestURI(),
+		"Paths": s.topPaths(a, 30, pref(r, "hide_trapped"), pref(r, "hide_allowed")), "Countries": a.Countries.top(30), "Total": a.Total,
+		"HideBlocked": pref(r, "hide_blocked"), "HideTrapped": pref(r, "hide_trapped"), "HideAllowed": pref(r, "hide_allowed"), "Self": r.URL.RequestURI(),
 	}})
 }
 
@@ -279,7 +304,7 @@ func (s *Server) ipPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	}
 	f := parseFilter(r, "30d")
 	f.IP = ip
-	a := aggregate(s.Store, f, time.Now())
+	a := aggregate(s.Store, f, time.Now(), s.allowed)
 	var recent []store.Summary
 	var first, last time.Time
 	s.Store.Scan(f.since(), func(e *store.Summary) bool {

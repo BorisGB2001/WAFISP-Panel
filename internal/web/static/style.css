@@ -457,4 +457,5 @@ details.pathmenu .menu { display: flex; flex-direction: column; gap: 4px; paddin
 /* remembered display switches in card heads; the trap match choice */
 a.toggle { font-size: 12px; color: var(--muted); margin-left: auto; margin-right: 12px; white-space: nowrap; }
 a.toggle:hover { color: var(--accent); }
+a.toggle + a.toggle { margin-left: 0; }
 .choice { display: flex; flex-direction: column; gap: 6px; }

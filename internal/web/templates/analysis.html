@@ -37,7 +37,7 @@
 <div class="grid2">
   <section class="card"><div class="cardhead"><h3>{{t "Top attackers"}}</h3>{{template "hidetoggle" (dict "Name" "hide_blocked" "On" $d.HideBlocked "Next" $d.Self "Label" (t "hide blocked"))}}</div>{{template "iplist" $d.Attackers}}</section>
   <section class="card"><h3>{{t "Top rules"}}</h3>{{template "rulelist" $d.Rules}}</section>
-  <section class="card"><div class="cardhead"><h3>{{t "Top paths"}}</h3>{{template "hidetoggle" (dict "Name" "hide_trapped" "On" $d.HideTrapped "Next" $d.Self "Label" (t "hide trapped"))}}</div>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
+  <section class="card"><div class="cardhead"><h3>{{t "Top paths"}}</h3>{{template "hidetoggle" (dict "Name" "hide_trapped" "On" $d.HideTrapped "Next" $d.Self "Label" (t "hide trapped"))}}{{template "hidetoggle" (dict "Name" "hide_allowed" "On" $d.HideAllowed "Next" $d.Self "Label" (t "hide paths only allowed addresses used"))}}</div>{{template "pathlist" (dict "L" $d.Paths "Admin" $.IsAdmin)}}</section>
   <section class="card"><h3>{{t "Countries"}}</h3>{{template "toplist" $d.Countries}}</section>
 </div>
 {{end}}

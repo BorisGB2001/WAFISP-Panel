@@ -1,6 +1,7 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -96,8 +97,12 @@ func (f filter) ipMatch(ip string) bool {
 	return ip == f.IP
 }
 
-// Query writes the filter as a query string; page 0 leaves it out.
-func (f filter) Query(page int) string {
+// Query writes the filter as a query string; page 0 leaves it out. It is
+// a template.URL so that html/template puts it after "?" as it is: a plain
+// string there gets its "=" and "&" escaped and the server sees no
+// parameters at all (the pager kept opening page 1). url.Values.Encode
+// has already escaped every value.
+func (f filter) Query(page int) template.URL {
 	v := url.Values{}
 	for k, x := range map[string]string{"period": f.Period, "site": f.Site, "ip": f.IP, "rule": f.Rule, "cat": f.Cat,
 		"action": f.Action, "path": f.Path, "var": f.Var} {
@@ -111,15 +116,15 @@ func (f filter) Query(page int) string {
 	if page > 1 {
 		v.Set("page", strconv.Itoa(page))
 	}
-	return v.Encode()
+	return template.URL(v.Encode())
 }
 
 // With returns the filter's query with one field replaced, for links that
 // narrow the current view.
-func (f filter) With(k, v string) string {
-	q, _ := url.ParseQuery(f.Query(0))
+func (f filter) With(k, v string) template.URL {
+	q, _ := url.ParseQuery(string(f.Query(0)))
 	q.Set(k, v)
-	return q.Encode()
+	return template.URL(q.Encode())
 }
 
 // kv is one line of a top list.
@@ -162,17 +167,23 @@ type agg struct {
 	Rules                 counter
 	Cats                  counter
 	Paths                 counter
-	Countries             counter
-	RuleMsg               map[string]string
+	// PathsOutside counts the requests to each path from addresses not
+	// on the allow list; zero means only allowed addresses went there.
+	PathsOutside counter
+	Countries    counter
+	RuleMsg      map[string]string
 	// Hourly (or daily) buckets for the chart, oldest first.
 	Labels       []string
 	BucketDenied []float64
 	BucketPassed []float64
 }
 
-func aggregate(st *store.Store, f filter, now time.Time) *agg {
+// aggregate sums up the events of f; allowed tells whether an address is
+// on the allow list and may be nil.
+func aggregate(st *store.Store, f filter, now time.Time, allowed func(string) bool) *agg {
 	a := &agg{IPs: counter{}, Sites: counter{}, Rules: counter{}, Cats: counter{}, Paths: counter{},
-		Countries: counter{}, RuleMsg: map[string]string{}}
+		PathsOutside: counter{}, Countries: counter{}, RuleMsg: map[string]string{}}
+	isAllowed := map[string]bool{}
 	since := f.since()
 	if since.IsZero() {
 		since = st.Oldest()
@@ -222,6 +233,14 @@ func aggregate(st *store.Store, f filter, now time.Time) *agg {
 		a.Sites.add(e.Site)
 		a.Cats.add(e.Category)
 		a.Paths.add(e.Site + e.Path)
+		ok, seen := isAllowed[e.SrcIP]
+		if !seen {
+			ok = allowed != nil && allowed(e.SrcIP)
+			isAllowed[e.SrcIP] = ok
+		}
+		if !ok {
+			a.PathsOutside.add(e.Site + e.Path)
+		}
 		a.Countries.add(e.Country)
 		for _, r := range e.Rules {
 			a.Rules.add(r)

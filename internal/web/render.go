@@ -225,7 +225,7 @@ func (s *Server) setTheme(w http.ResponseWriter, r *http.Request) {
 }
 
 // prefs are the per-browser display switches kept in cookies.
-var prefs = []string{"hide_blocked", "hide_trapped"}
+var prefs = []string{"hide_blocked", "hide_trapped", "hide_allowed", "log_hide_blocked", "log_hide_passed"}
 
 // setPref turns one display switch on or off for a year and goes back.
 func (s *Server) setPref(w http.ResponseWriter, r *http.Request) {
