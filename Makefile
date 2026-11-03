@@ -17,7 +17,8 @@
 # boris.gb 2026-11-03 01:36 - 0.5.1: Cloudflare addresses never blocked (old blocks lifted), sites without WAF highlighted, update page waits and reloads, notes in the panel's language
 # boris.gb 2026-11-03 15:57 - 0.5.2: auto-ban from the access logs (404s on pages, login attempts, request rate), "Event" title in Russian
 # boris.gb 2026-11-03 16:18 - 0.6.0: shared blocks between servers through a private GitHub repository (signed lists, dry run, each server keeps its protected and allow lists)
-VERSION ?= 0.6.0
+# boris.gb 2026-11-03 16:31 - 0.6.1: shared blocks over git+SSH with a per-server deploy key (no token on the servers), GitHub host key pinned
+VERSION ?= 0.6.1
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release

@@ -406,8 +406,13 @@ func newSyncer(cfg *config.Config, blocks *block.Manager, pol *policy.Manager, l
 			return nil, fmt.Errorf("share: backend %q is not in block.backends", b)
 		}
 	}
+	var store share.Store = &share.GitHub{API: sh.API, Repo: sh.Repo, Branch: sh.Branch, Token: sh.Token, HTTP: &http.Client{Timeout: 30 * time.Second}}
+	if sh.SSHKey != nil {
+		store = &share.Git{URL: "git@github.com:" + sh.Repo + ".git", Branch: sh.Branch, Key: sh.SSHKey, Name: sh.Name,
+			Dir: filepath.Join(cfg.DataDir, "share-git")}
+	}
 	return &share.Syncer{Name: sh.Name, Key: priv, Peers: peers, Blocks: blocks, Backends: sh.Backends, Apply: sh.Apply,
-		Store:     &share.GitHub{API: sh.API, Repo: sh.Repo, Branch: sh.Branch, Token: sh.Token, HTTP: &http.Client{Timeout: 30 * time.Second}},
+		Store:     store,
 		Allowed:   func(ip string) bool { return allowed(pol, ip) },
 		StateFile: filepath.Join(cfg.DataDir, "share.json"), Log: log}, nil
 }

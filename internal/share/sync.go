@@ -152,12 +152,12 @@ func (s *Syncer) Own() []Item {
 	return out
 }
 
-// publish writes the list when it changed, and every 10 minutes anyway so
-// the peers see this server is alive.
+// publish writes the list when it changed, and every hour anyway so the
+// peers see this server is alive.
 func (s *Syncer) publish(ctx context.Context) {
 	items := s.Own()
 	s.mu.Lock()
-	fresh := s.now().Sub(s.pubAt) < 10*time.Minute
+	fresh := s.now().Sub(s.pubAt) < time.Hour
 	unchanged := same(items, s.published) && fresh
 	s.mu.Unlock()
 	if unchanged {

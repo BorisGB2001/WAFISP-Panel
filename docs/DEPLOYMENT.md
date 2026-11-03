@@ -34,8 +34,12 @@ Each server keeps the last word. A peer's address is skipped when it is protecte
 
 To set it up:
 
-1. Create a private repository, e.g. `wafisp-share`, and a fine-grained token with "Contents: read and write" on that repository only. Put it in `/etc/wafisp/secrets/github-share.token` (mode 0600) on every server. The servers need outbound HTTPS to api.github.com, as for updates.
-2. On every server: `wafisp -genkey /etc/wafisp/secrets/share.key`. It prints the server's public key; the private key never leaves the server.
+1. Create a private repository with a README, e.g. `wafisp-share`.
+2. On every server make two keys; neither leaves the server:
+   - `wafisp -genkey /etc/wafisp/secrets/share.key` signs the server's list and prints its public key, for the other servers' `peers`;
+   - `ssh-keygen -t ed25519 -N '' -C wafisp-<name> -f /etc/wafisp/secrets/share-deploy.key` is the server's deploy key. Add `share-deploy.key.pub` to the repository's Settings → Deploy keys with "Allow write access". It can write to that repository and nothing else.
+
+   The panel speaks git over SSH to github.com:22 itself (git is not needed on the host) and checks GitHub's pinned host key. Instead of a deploy key, `token_file` can hold a fine-grained token with "Contents: read and write" on that repository only; the panel then uses the GitHub API over HTTPS.
 3. Add the `share` section to every server's config with its own `name` and the other servers' public keys under `peers` (see `deploy/wafisp.example.yaml`), and restart the panel.
 4. The "Shared blocks" page shows every server: when its list was made, how many blocks it has, how many were applied here, which were skipped and why. With `apply: false` (the default) the peers' blocks are only counted as "would block". Check them, then set `apply: true` and restart.
 

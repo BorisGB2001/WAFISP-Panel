@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -18,6 +19,11 @@ import (
 	"time"
 
 	"wafisp/internal/block"
+
+	git "github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 type memBackend struct{ ips []string }
@@ -321,5 +327,56 @@ func TestGitHubStore(t *testing.T) {
 	}
 	if got, _ := base64.StdEncoding.DecodeString(files["blocks/a.json"]); string(got) != "three" {
 		t.Fatal(string(got))
+	}
+}
+
+func TestGitStore(t *testing.T) {
+	ctx := context.Background()
+	// A bare repository with a first commit, as GitHub makes with a README.
+	dir := t.TempDir()
+	bare := filepath.Join(dir, "share.git")
+	seed := filepath.Join(dir, "seed")
+	if _, err := git.PlainInit(bare, true); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := git.PlainInit(seed, false)
+	os.WriteFile(filepath.Join(seed, "README.md"), []byte("blocks\n"), 0o644)
+	wt, _ := r.Worktree()
+	wt.Add("README.md")
+	sig := &object.Signature{Name: "t", Email: "t@t", When: time.Now()}
+	wt.Commit("first", &git.CommitOptions{Author: sig})
+	head, _ := r.Head()
+	r.Storer.SetReference(plumbing.NewHashReference("refs/heads/main", head.Hash()))
+	r.CreateRemote(&gitconfig.RemoteConfig{Name: "origin", URLs: []string{bare}})
+	if err := r.Push(&git.PushOptions{RefSpecs: []gitconfig.RefSpec{"refs/heads/main:refs/heads/main"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &Git{URL: bare, Dir: filepath.Join(dir, "a"), Name: "a"}
+	b := &Git{URL: bare, Dir: filepath.Join(dir, "b"), Name: "b"}
+	if _, err := b.Get(ctx, "a"); err != ErrNotFound {
+		t.Fatal(err)
+	}
+	if err := a.Put(ctx, "a", []byte("one")); err != nil {
+		t.Fatal(err)
+	}
+	// b has an old clone: its push is refused, it fetches and pushes again.
+	if err := b.Put(ctx, "b", []byte("two")); err != nil {
+		t.Fatal(err)
+	}
+	b.fetched = time.Time{}
+	if got, err := b.Get(ctx, "a"); err != nil || string(got) != "one" {
+		t.Fatal(string(got), err)
+	}
+	a.fetched = time.Time{}
+	if got, err := a.Get(ctx, "b"); err != nil || string(got) != "two" {
+		t.Fatal(string(got), err)
+	}
+	if err := a.Put(ctx, "a", []byte("three")); err != nil {
+		t.Fatal(err)
+	}
+	b.fetched = time.Time{}
+	if got, _ := b.Get(ctx, "a"); string(got) != "three" {
+		t.Fatalf("got %q", got)
 	}
 }

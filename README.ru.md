@@ -130,4 +130,4 @@ sh deploy/install.sh wafisp.yaml secrets
 
 ## Статус
 
-Версия 0.6.0. Собрано и проверено на ISPmanager 6, libmodsecurity 3.0.14 и OWASP CRS 4.
+Версия 0.6.1. Собрано и проверено на ISPmanager 6, libmodsecurity 3.0.14 и OWASP CRS 4.

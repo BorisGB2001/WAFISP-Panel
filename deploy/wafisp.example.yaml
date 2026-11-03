@@ -140,7 +140,8 @@ access_logs:
 # share:
 #   name: web1                                  # this server in the exchange
 #   repo: example/wafisp-share                  # private repository
-#   token_file: secrets/github-share.token      # fine-grained token: contents read/write on that repo only
+#   ssh_key_file: secrets/share-deploy.key      # deploy key with write access to that repo only (ssh-keygen -t ed25519)
+#   # token_file: secrets/github-share.token    # or a fine-grained token: contents read/write on that repo only
 #   key_file: secrets/share.key                 # wafisp -genkey secrets/share.key prints the public key
 #   peers:                                      # the other servers and their public keys
 #     web2: "base64 public key of web2"

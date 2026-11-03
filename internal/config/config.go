@@ -67,9 +67,12 @@ type Share struct {
 	// API is GitHub's API, https://api.github.com by default (GitHub
 	// Enterprise has its own).
 	API string `yaml:"api"`
-	// TokenFile holds a GitHub token that can read and write the contents
-	// of Repo only.
-	TokenFile string `yaml:"token_file"`
+	// SSHKeyFile is a deploy key of this server with write access to Repo
+	// only (ssh-keygen -t ed25519); the lists then go over git+SSH and no
+	// account token is needed. Otherwise TokenFile holds a GitHub token
+	// that can read and write the contents of Repo only.
+	SSHKeyFile string `yaml:"ssh_key_file"`
+	TokenFile  string `yaml:"token_file"`
 	// KeyFile is this server's private key, made by wafisp -genkey.
 	KeyFile string `yaml:"key_file"`
 	// Peers are the trusted servers: name -> public key.
@@ -82,8 +85,9 @@ type Share struct {
 	// Interval between exchanges, 1m by default.
 	Interval Duration `yaml:"interval"`
 
-	Token string `yaml:"-"`
-	Key   string `yaml:"-"`
+	Token  string `yaml:"-"`
+	Key    string `yaml:"-"`
+	SSHKey []byte `yaml:"-"`
 }
 
 // AccessLogs are the sites' nginx access logs, read for the Visitors page:
@@ -646,8 +650,15 @@ func (sh *Share) finish(secret func(p, what string) (string, error)) error {
 	if sh.Token, err = secret(sh.TokenFile, "token_file"); err != nil {
 		return err
 	}
-	if sh.Token == "" {
-		return fmt.Errorf("token_file is required")
+	if sh.SSHKeyFile != "" {
+		k, err := secret(sh.SSHKeyFile, "ssh_key_file")
+		if err != nil {
+			return err
+		}
+		sh.SSHKey = []byte(k + "\n")
+	}
+	if sh.Token == "" && sh.SSHKey == nil {
+		return fmt.Errorf("give ssh_key_file (a deploy key) or token_file")
 	}
 	if sh.Key, err = secret(sh.KeyFile, "key_file"); err != nil {
 		return err
