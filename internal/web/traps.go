@@ -27,6 +27,7 @@ func (s *Server) trapsPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	}
 	data := map[string]any{
 		"Traps": st.Traps, "Hits": s.Autoban.TrapHits(), "Banned": banned, "Sites": s.siteNames(), "Durations": banDurations,
+		"Defaults": policy.DefaultTraps(time.Now()), "DefaultsAdded": st.DefaultTraps,
 		"Site": site, "Path": path, "Match": match, "Backends": s.Autoban.Settings().Backends, "Loaded": s.Cfg.Nginx.IncludeFile != "none",
 	}
 	if path != "" {
@@ -84,6 +85,20 @@ func (s *Server) trapAdd(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "trap", fmt.Sprintf("#%d %s%s match=%s for %s dry_run=%v: %s", added.ID, t.Site, t.Path, t.Match, banDurations[i].Label, t.DryRun, t.Reason))
 	flashRedirect(w, r, "/traps", tr(r, "Trap %d set on %s%s", added.ID, t.Site, t.Path), "")
+}
+
+// trapDefaults adds the default traps, in dry run.
+func (s *Server) trapDefaults(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+	defer cancel()
+	n := 0
+	err := s.Policy.Update(ctx, func(st *policy.State) error { n = st.AddDefaultTraps(time.Now()); return nil })
+	if err != nil {
+		flashRedirect(w, r, "/traps", "", errText(r, err))
+		return
+	}
+	s.audit.Log(rc.User.Name, clientIP(r), "trap.defaults", fmt.Sprintf("%d default traps added in dry run", n))
+	flashRedirect(w, r, "/traps", tr(r, "%d default traps added in dry run. Look at their hits, then switch them to banning.", n), "")
 }
 
 func (s *Server) trapEnabled(w http.ResponseWriter, r *http.Request, rc *reqCtx) {

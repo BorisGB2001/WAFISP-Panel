@@ -44,6 +44,7 @@ import (
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
 	"wafisp/internal/update"
+	"wafisp/internal/visitors"
 	"wafisp/internal/web"
 )
 
@@ -239,8 +240,18 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 			Exe: exe, PublicKey: releaseKey(), HTTP: &http.Client{Timeout: 5 * time.Minute}, Log: log}
 		go upd.Loop(ctx, cfg.Update.Interval.D())
 	}
+	var visits *visitors.Store
+	var visitLogs *visitors.Reader
+	if !cfg.AccessLogs.Disabled {
+		if visits, err = visitors.OpenStore(filepath.Join(cfg.DataDir, "visitors"), cfg.AccessLogs.Retention.D()); err != nil {
+			return fmt.Errorf("visitors: %w", err)
+		}
+		visitLogs = &visitors.Reader{Glob: cfg.AccessLogs.Glob, Suffix: cfg.AccessLogs.Suffix, Store: visits,
+			StateFile: filepath.Join(cfg.DataDir, "visitors", "cursors.json"), Every: 10 * time.Second, Log: log}
+		go visitLogs.Run(ctx)
+	}
 	ws := &web.Server{Cfg: cfg, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
-		Autoban: ban, Health: health, Updater: upd,
+		Autoban: ban, Health: health, Updater: upd, Visitors: visits, VisitorLogs: visitLogs,
 		Senders: senders, Stats: st, History: hist, Rules: p, Log: log, Version: version, RuleFile: ruleFile}
 	if err := ws.Open(activeRules); err != nil {
 		return fmt.Errorf("web: %w", err)
@@ -251,6 +262,18 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	actx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	if err := pol.Apply(actx); err != nil {
 		log.Error("policy: apply on start", "err", err)
+	}
+	// The default traps arrive by themselves only where that needs no nginx
+	// reload; elsewhere the Traps page offers them, since adding them
+	// reloads nginx like any trap.
+	if !pol.State().DefaultTraps && len(cfg.Nginx.Reload) == 0 {
+		n := 0
+		err := pol.Update(actx, func(s *policy.State) error { n = s.AddDefaultTraps(time.Now()); return nil })
+		if err != nil {
+			log.Error("policy: default traps", "err", err)
+		} else {
+			ws.Audit().Log("system", "", "trap.defaults", fmt.Sprintf("%d default traps added in dry run", n))
+		}
 	}
 	cancel()
 

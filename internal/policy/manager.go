@@ -403,6 +403,42 @@ func (s *State) AddTrap(t Trap) (Trap, error) {
 	return t, nil
 }
 
+// DefaultTraps are paths only scanners request. Matched anywhere in the
+// path and written with the slash before them, so that /.env.bak and
+// /app/.git/config are caught but /files/report.envelope.pdf and /.github/
+// are not.
+func DefaultTraps(now time.Time) []Trap {
+	var out []Trap
+	for _, x := range []struct{ path, what string }{
+		{"/.env", "environment files with passwords and API keys"},
+		{"/.git/", "the git repository: source code and history"},
+		{"/.aws/", "AWS credentials"},
+		{"/phpinfo.php", "the PHP configuration dump"},
+		{"/.zshrc", "a shell config in the web root"},
+		{"/.bashrc", "a shell config in the web root"},
+	} {
+		out = append(out, Trap{Path: x.path, Match: "contains", DryRun: true, Duration: 7 * 24 * time.Hour, Default: true,
+			Meta: Meta{By: "panel", Reason: "default trap: scanners look for " + x.what, At: now}})
+	}
+	return out
+}
+
+// AddDefaultTraps adds the default traps once, in dry run; a path already
+// trapped is skipped. It returns how many were added.
+func (s *State) AddDefaultTraps(now time.Time) int {
+	if s.DefaultTraps {
+		return 0
+	}
+	n := 0
+	for _, t := range DefaultTraps(now) {
+		if _, err := s.AddTrap(t); err == nil {
+			n++
+		}
+	}
+	s.DefaultTraps = true
+	return n
+}
+
 func (s *State) Trap(id int) *Trap {
 	i := slices.IndexFunc(s.Traps, func(x Trap) bool { return x.ID == id })
 	if i < 0 {

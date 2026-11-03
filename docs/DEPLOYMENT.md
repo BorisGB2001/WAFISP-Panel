@@ -16,6 +16,14 @@ sh deploy/install.sh                        # upgrade: binary and unit only
 
 The installer checks the new binary with the new config (`-check`, read-only) before switching over and keeps the previous config as `wafisp.yaml.bak-<date>`. It never changes nginx's configuration.
 
+## Visitors and access logs
+
+The Visitors page reads the sites' nginx access logs (`access_logs.glob`, by default `*.access.log` next to the audit logs; ISPmanager writes them to `/var/www/httpd-logs/`). It needs nginx's standard "combined" format, which ISPmanager uses. The panel follows each log like the audit logs: it remembers how far it read, and after a rotation it starts over on the new file. It keeps only hourly counts per site, in `data_dir/visitors/YYYY-MM-DD.json.gz`, for `access_logs.retention` (a year). So the logs can be rotated and deleted by ISPmanager without losing the statistics; lines appended in the seconds between the panel's last read and a rotation may be missed. Set `access_logs.disabled: true` to turn it off.
+
+## Default traps
+
+On hosts where nginx does not load the panel's rules (step 1, `nginx.reload: []`), the panel adds the default traps once, in dry run with a 7-day ban: `/.env`, `/.git/`, `/.aws/`, `/phpinfo.php`, `/.zshrc`, `/.bashrc`, each matched anywhere in the path. Where adding them would reload nginx, the Traps page offers them with a button instead. A default trap that is deleted is not added again.
+
 ## Updates from the panel
 
 Every 6 hours the panel asks GitHub for the latest release (`update.repo`, the project's own by default). When there is a newer one, admins see a banner and the "Update" page with the release notes. "Update" does this:

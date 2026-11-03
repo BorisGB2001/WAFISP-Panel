@@ -24,6 +24,7 @@ type filter struct {
 	Path   string // substring of the path
 	Var    string // matched variable, e.g. ARGS:id
 	Score  int    // minimal anomaly score
+	Client string // browser | bot | script | empty
 	Page   int
 
 	net netip.Prefix // IP as a subnet, when it is one
@@ -55,7 +56,7 @@ func parseFilter(r *http.Request, defPeriod string) filter {
 	f := filter{
 		Period: q.Get("period"), Site: q.Get("site"), IP: strings.TrimSpace(q.Get("ip")),
 		Rule: strings.TrimSpace(q.Get("rule")), Cat: q.Get("cat"), Action: q.Get("action"),
-		Path: strings.TrimSpace(q.Get("path")), Var: strings.TrimSpace(q.Get("var")),
+		Path: strings.TrimSpace(q.Get("path")), Var: strings.TrimSpace(q.Get("var")), Client: q.Get("client"),
 	}
 	if p, err := netip.ParsePrefix(f.IP); err == nil {
 		f.net = p.Masked()
@@ -104,7 +105,8 @@ func (f filter) match(e *store.Summary) bool {
 		f.Score > 0 && e.Score < f.Score,
 		f.Path != "" && !strings.Contains(strings.ToLower(e.Path), strings.ToLower(f.Path)),
 		f.Rule != "" && !slices.Contains(e.Rules, f.Rule),
-		f.Var != "" && !slices.Contains(e.Vars, f.Var):
+		f.Var != "" && !slices.Contains(e.Vars, f.Var),
+		f.Client != "" && e.ClientKind != f.Client:
 		return false
 	}
 	return true
@@ -131,7 +133,7 @@ func (f filter) ipMatch(ip string) bool {
 func (f filter) Query(page int) template.URL {
 	v := url.Values{}
 	for k, x := range map[string]string{"period": f.Period, "site": f.Site, "ip": f.IP, "rule": f.Rule, "cat": f.Cat,
-		"action": f.Action, "path": f.Path, "var": f.Var} {
+		"action": f.Action, "path": f.Path, "var": f.Var, "client": f.Client} {
 		if x != "" {
 			v.Set(k, x)
 		}

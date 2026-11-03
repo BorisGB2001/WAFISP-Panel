@@ -38,6 +38,7 @@ import (
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
 	"wafisp/internal/update"
+	"wafisp/internal/visitors"
 )
 
 //go:embed templates/*.html static/*
@@ -60,13 +61,16 @@ type Server struct {
 	Autoban   *autoban.Engine
 	Health    *Health
 	Updater   *update.Updater // nil when the update check is off
-	Senders   map[string]notify.Sender
-	Stats     *stats.Registry
-	History   *history.History
-	Rules     RuleSink
-	Log       *slog.Logger
-	Version   string
-	RuleFile  string
+	// Visitors are the access log summaries; nil when access_logs.disabled.
+	Visitors    *visitors.Store
+	VisitorLogs *visitors.Reader
+	Senders     map[string]notify.Sender
+	Stats       *stats.Registry
+	History     *history.History
+	Rules       RuleSink
+	Log         *slog.Logger
+	Version     string
+	RuleFile    string
 
 	users    *auth.Users
 	sessions *auth.Sessions
@@ -162,6 +166,7 @@ func (s *Server) Handler() http.Handler {
 	view("GET /exclusions", s.exclusionsPage)
 	view("GET /autoban", s.autobanPage)
 	view("GET /traps", s.trapsPage)
+	view("GET /visitors", s.visitorsPage)
 	view("GET /alerts", s.alerts)
 	view("GET /rules", s.rulesPage)
 	view("GET /channels", s.channelsPage)
@@ -195,6 +200,7 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /policy/apply", s.policyApply)
 	admin("POST /autoban", s.autobanSave)
 	admin("POST /traps", s.trapAdd)
+	admin("POST /traps/defaults", s.trapDefaults)
 	admin("POST /traps/{id}/enabled", s.trapEnabled)
 	admin("POST /traps/{id}/dry_run", s.trapDryRun)
 	admin("GET /traps/{id}/delete", s.trapDeletePage)

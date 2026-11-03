@@ -79,6 +79,10 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 
 const pageSize = 50
 
+var clientOptions = []struct{ Key, Label string }{
+	{"browser", "Browsers"}, {"bot", "Bots"}, {"script", "Scripts and scanners"}, {"empty", "No User-Agent"},
+}
+
 // logView is the attack log's filter plus the remembered switches: hide
 // the addresses already blocked, hide the passed requests.
 func (s *Server) logView(r *http.Request, f filter) func(*store.Summary) bool {
@@ -126,7 +130,7 @@ func (s *Server) attacks(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		}
 	}
 	s.render(w, r, rc, "attacks.html", page{Title: "Attack log", Active: "attacks", Data: map[string]any{
-		"F": f, "Rows": rows, "Total": total, "Pages": pages, "Periods": periods, "Cats": categoryOptions(),
+		"F": f, "Rows": rows, "Total": total, "Pages": pages, "Periods": periods, "Cats": categoryOptions(), "Clients": clientOptions,
 		"Sites": s.siteNames(), "Prev": f.Query(f.Page - 1), "Next": f.Query(f.Page + 1), "CSV": f.Query(0),
 		"DefaultBackends": s.Cfg.Block.Default, "Blocked": s.Blocks.Blocked(ips), "Allowed": allowed,
 		// The switches go back to page 1: the old page may no longer exist.

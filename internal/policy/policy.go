@@ -86,6 +86,8 @@ type Trap struct {
 	Path     string        `json:"path"`
 	Match    string        `json:"match,omitempty"` // "" (prefix) | "contains"
 	Duration time.Duration `json:"duration"`
+	// Default marks the traps the panel ships with.
+	Default bool `json:"default,omitempty"`
 	Meta
 }
 
@@ -146,6 +148,9 @@ type State struct {
 	Modes      []Mode      `json:"modes"`
 	Traps      []Trap      `json:"traps,omitempty"`
 	NextID     int         `json:"next_id"`
+	// DefaultTraps is set once the default traps were added, so that a
+	// default trap an admin deleted is never added again.
+	DefaultTraps bool `json:"default_traps,omitempty"`
 }
 
 var (

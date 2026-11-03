@@ -138,3 +138,13 @@ func Evaluation(id string) bool {
 	return strings.HasPrefix(id, "949") || strings.HasPrefix(id, "959") || strings.HasPrefix(id, "980") ||
 		strings.HasPrefix(id, "901") || strings.HasPrefix(id, "905")
 }
+
+// Header is the first request header with that name, case-insensitively.
+func (e Event) Header(name string) string {
+	for _, h := range e.Headers {
+		if strings.EqualFold(h.Name, name) {
+			return h.Value
+		}
+	}
+	return ""
+}

@@ -30,6 +30,7 @@ import (
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
 	"wafisp/internal/update"
+	"wafisp/internal/visitors"
 )
 
 type ruleSink struct{ got []config.Rule }
@@ -891,5 +892,48 @@ func TestUpdatePage(t *testing.T) {
 	}
 	if _, b := get(t, ts, c, "/audit"); !strings.Contains(b, "0.3.5 → 9.9.9") {
 		t.Fatal("the update is not in the audit log")
+	}
+}
+
+func TestVisitorsPage(t *testing.T) {
+	ts, env, _ := newTestServer(t)
+	logs := filepath.Join(env.Cfg.DataDir, "logs")
+	os.MkdirAll(logs, 0o755)
+	now := time.Now().Format("02/Jan/2006:15:04:05 -0700")
+	os.WriteFile(filepath.Join(logs, "shop.example.ru.access.log"), []byte(
+		`198.51.100.1 - - [`+now+`] "GET / HTTP/1.1" 200 5 "https://yandex.ru/search/?text=x" "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Version/18.1 Mobile/15E148 Safari/604.1"`+"\n"+
+			`66.249.66.1 - - [`+now+`] "GET /old HTTP/1.1" 404 5 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"`+"\n"), 0o644)
+	st, _ := visitors.OpenStore(filepath.Join(env.Cfg.DataDir, "visitors"), 365*24*time.Hour)
+	env.Visitors = st
+	env.VisitorLogs = &visitors.Reader{Glob: filepath.Join(logs, "*.access.log"), Suffix: ".access.log", Store: st, StateFile: filepath.Join(env.Cfg.DataDir, "vc.json")}
+	env.VisitorLogs.Poll()
+	c := browser(ts)
+	pw, _ := os.ReadFile(filepath.Join(env.Cfg.Web.DataDir, "initial-admin-password"))
+	login(t, ts, c, "admin", strings.TrimSpace(string(pw)))
+	_, b := get(t, ts, c, "/visitors")
+	for _, want := range []string{"Yandex", "Googlebot", "/old", "Phone", "shop.example.ru"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("the visitors page lacks %q", want)
+		}
+	}
+	// The attack log shows what sent the request.
+	if _, b := get(t, ts, c, "/attacks?client=script"); !strings.Contains(b, "Found: 0") {
+		t.Error("client filter: the test events have no User-Agent, not scripts")
+	}
+	if _, b := get(t, ts, c, "/attacks?client=empty"); !strings.Contains(b, "no User-Agent") {
+		t.Error("the attack log does not show the client")
+	}
+	// The default traps are offered once.
+	if _, b := get(t, ts, c, "/traps"); !strings.Contains(b, "Add the default traps") {
+		t.Fatal("no default traps offer")
+	}
+	_, page := get(t, ts, c, "/traps")
+	resp, _ := c.PostForm(ts.URL+"/traps/defaults", url.Values{"csrf": {csrfRe.FindStringSubmatch(page)[1]}})
+	body(t, resp)
+	if s := env.Policy.State(); len(s.Traps) != 6 || !s.DefaultTraps || !s.Traps[0].DryRun {
+		t.Fatalf("default traps: %d", len(s.Traps))
+	}
+	if _, b := get(t, ts, c, "/traps"); strings.Contains(b, "Add the default traps") {
+		t.Fatal("offered again")
 	}
 }

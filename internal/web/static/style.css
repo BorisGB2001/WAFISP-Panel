@@ -86,6 +86,7 @@ small, .small { font-size: 12px; }
 .nowrap { white-space: nowrap; }
 em.bad, .bad { color: var(--bad); font-style: normal; }
 b.warn { color: var(--warn); }
+b.bad { color: var(--bad); }
 
 /* sidebar */
 .side {
@@ -461,3 +462,5 @@ a.toggle:hover { color: var(--accent); }
 a.toggle + a.toggle { margin-left: 0; }
 .choice { display: flex; flex-direction: column; gap: 6px; }
 pre.notes { white-space: pre-wrap; font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; max-height: 320px; overflow: auto; }
+small.client { color: var(--muted); font-size: 11px; white-space: nowrap; }
+small.client.script, small.client.empty { color: var(--warn); }

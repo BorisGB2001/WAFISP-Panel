@@ -16,6 +16,7 @@
     <a href="/" class="{{if eq .Active "dash"}}on{{end}}">{{t "Overview"}}</a>
     <a href="/attacks" class="{{if eq .Active "attacks"}}on{{end}}">{{t "Attack log"}}</a>
     <a href="/analysis" class="{{if eq .Active "analysis"}}on{{end}}">{{t "Analysis"}}</a>
+    <a href="/visitors" class="{{if eq .Active "visitors"}}on{{end}}">{{t "Visitors"}}</a>
     <a href="/sites" class="{{if eq .Active "sites"}}on{{end}}">{{t "Sites"}}</a>
     <a href="/blocks" class="{{if eq .Active "blocks"}}on{{end}}">{{t "Blocking"}}</a>
     <a href="/blocked" class="sub {{if eq .Active "blocked"}}on{{end}}">{{t "Blocked list"}}{{if .BlockedCount}} <span class="count">{{.BlockedCount}}</span>{{end}}</a>
@@ -123,6 +124,9 @@
   {{if .Admin}}<a href="/massban?site={{.Site}}&amp;path={{.Path}}&amp;period=7d">⛔ {{t "Ban everyone who requested it…"}}</a>
   {{if .Trap}}<a href="/traps">🪤 {{t "Open trap #%s" .Trap}}</a>{{else}}<a href="/traps?site={{.Site}}&amp;path={{.Path}}#new">🪤 {{t "Trap: ban whoever requests it from now on…"}}</a>{{end}}{{end}}
 </span></details>{{if .Trap}} <a href="/traps" class="badge bad" title="{{t "Whoever requests this path gets banned"}}">🪤 {{t "trap #%s" .Trap}}</a>{{end}}{{end}}
+
+{{/* client: what sent the request, from a store.Summary */}}
+{{define "client"}}<small class="client {{.ClientKind}}" title="User-Agent">{{if eq .ClientKind "bot"}}🤖{{else if eq .ClientKind "script"}}⚙{{else if eq .ClientKind "browser"}}🖥{{else}}∅{{end}} {{if eq .ClientKind "empty"}}{{t "no User-Agent"}}{{else}}{{.Client}}{{end}}</small>{{end}}
 
 {{/* allowinfo: . is a policy.Addr on the allow list */}}
 {{define "allowinfo"}}<div class="note ok">✓ <b>{{t "On the allow list: %s" .IP}}</b> {{dt .At}} · {{.By}} · «{{.Reason}}» · {{if .Expires.IsZero}}{{t "until removed"}}{{else}}{{t "until"}} {{dt .Expires}}{{end}}<br>

@@ -1,0 +1,49 @@
+{{define "content"}}
+{{$d := .Data}}
+<form class="filters card inlinefilters" method="get" action="/visitors">
+  {{template "periods" $d}}
+  <label>{{t "Site"}}<select name="site"><option value="">{{t "All"}}</option>{{range $d.Sites}}<option {{if eq . $d.F.Site}}selected{{end}}>{{.}}</option>{{end}}</select></label>
+  <div class="actions"><button class="btn">{{t "Show"}}</button></div>
+</form>
+{{if $d.Off}}
+<section class="card"><p>{{t "Reading the access logs is off (access_logs.disabled in the config)."}}</p></section>
+{{else}}{{$a := $d.Rep.Total}}
+{{if not $d.Files}}<div class="note warn">{{t "No access logs match %s yet." $d.Glob}}</div>{{end}}
+<div class="tiles">
+  <div class="tile"><span>{{t "Requests"}}</span><b>{{num (int64 $a.Requests)}}</b><small>{{t "all, with pictures, scripts and bots"}}</small></div>
+  <div class="tile"><span>{{t "Page views"}}</span><b>{{num (int64 $a.Views)}}</b><small>{{t "by browsers, without assets"}}</small></div>
+  <div class="tile"><span>{{t "Bots"}}</span><b>{{num (int64 $d.Bots)}}</b><small>{{pct $d.Bots $a.Requests}}% · {{t "scripts: %d" $d.Scripts}}</small></div>
+  <div class="tile"><span>{{t "Not found (404)"}}</span><b class="{{if $d.NotFound}}warn{{end}}">{{num (int64 $d.NotFound)}}</b><small>{{pct $d.NotFound $a.Requests}}%</small></div>
+  <div class="tile"><span>{{t "Server errors (5xx)"}}</span><b class="{{if $d.Errors5}}bad{{end}}">{{num (int64 $d.Errors5)}}</b><small>{{pct $d.Errors5 $a.Requests}}%</small></div>
+</div>
+
+<section class="card">
+  <div class="cardhead"><h3>{{t "Traffic over time"}}</h3><div class="chartlegend"><span class="s1">{{t "requests"}}</span><span class="s3">{{t "page views"}}</span></div></div>
+  {{$d.Chart}}
+</section>
+
+<div class="grid2">
+{{range $d.Rings}}
+  <section class="card"><h3>{{.Title}}</h3>
+    <div class="donutbox">{{.Donut}}
+      <ul class="legend">{{range .Slices}}<li><i class="s{{.Slot}}"></i><span title="{{.Label}}">{{tx .Label}}</span><b>{{.Value}}</b><small>{{.Pct}}%</small></li>{{else}}<li class="muted">{{t "No data"}}</li>{{end}}</ul>
+    </div>
+  </section>
+{{end}}
+</div>
+
+<div class="grid2">
+  <section class="card"><h3>{{t "Search engines"}}</h3>{{template "toplist" $d.Search}}</section>
+  <section class="card"><h3>{{t "Social networks"}}</h3>{{template "toplist" $d.Social}}</section>
+  <section class="card"><h3>{{t "Referring sites"}}</h3>{{template "toplist" $d.Referrers}}</section>
+  <section class="card"><h3>{{t "Top pages"}}</h3>{{template "toplist" $d.Pages}}</section>
+  <section class="card"><h3>{{t "Operating systems"}}</h3>{{template "toplist" $d.OS}}</section>
+  <section class="card"><h3>{{t "Browsers"}}</h3>{{template "toplist" $d.Browsers}}</section>
+  <section class="card"><h3>{{t "Not found (404)"}}</h3><p class="muted small">{{t "Broken links and scanners looking for files."}}</p>{{template "toplist" $d.Missing}}</section>
+  <section class="card"><h3>{{t "Bots"}}</h3>{{template "toplist" $d.BotList}}</section>
+  <section class="card"><h3>{{t "Scripts and scanners"}}</h3>{{template "toplist" $d.ScriptList}}</section>
+  {{if not $d.F.Site}}<section class="card"><h3>{{t "Sites"}}</h3>{{if $d.SiteList}}<ol class="top">{{$max := (index $d.SiteList 0).Count}}{{range $d.SiteList}}<li><span class="k"><a href="/visitors?site={{.Key}}">{{.Key}}</a></span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>{{else}}<p class="muted">{{t "No data"}}</p>{{end}}</section>{{end}}
+</div>
+<p class="muted small">{{t "Read from the nginx access logs (%s). Only counts are kept, for a year; the logs themselves are rotated and deleted by ISPmanager." $d.Glob}}</p>
+{{end}}
+{{end}}

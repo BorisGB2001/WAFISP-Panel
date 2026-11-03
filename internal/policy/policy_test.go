@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFiles(t *testing.T) {
@@ -200,5 +201,34 @@ func TestTrapContains(t *testing.T) {
 	before, _ := (&State{Traps: []Trap{tr}}).Files("/r")
 	if !strings.Contains(before, `SecRule REQUEST_FILENAME "@contains .env" "id:7720005,`) {
 		t.Fatal(before)
+	}
+}
+
+func TestDefaultTraps(t *testing.T) {
+	var s State
+	s.AddTrap(Trap{Path: "/.env", Match: "contains", Meta: Meta{Reason: "by hand"}})
+	if n := s.AddDefaultTraps(time.Now()); n != 5 || len(s.Traps) != 6 || !s.DefaultTraps {
+		t.Fatalf("added %d, traps %d", n, len(s.Traps))
+	}
+	for _, x := range s.Traps[1:] {
+		if !x.Default || !x.DryRun || x.Duration != 7*24*time.Hour || x.Site != "" {
+			t.Fatalf("%+v", x)
+		}
+	}
+	// Deleted ones do not come back.
+	s.Traps = s.Traps[:1]
+	if n := s.AddDefaultTraps(time.Now()); n != 0 || len(s.Traps) != 1 {
+		t.Fatal("default traps added twice")
+	}
+	tr := DefaultTraps(time.Now())
+	for path, want := range map[string]bool{"/.env": true, "/.env.bak": true, "/app/.env": true, "/files/report.envelope.pdf": false,
+		"/.git/config": true, "/.github/workflows/x.yml": false, "/.aws/credentials": true, "/phpinfo.php": true, "/~u/.bashrc": true, "/": false} {
+		got := false
+		for _, x := range tr {
+			got = got || x.Matches("example.com", path)
+		}
+		if got != want {
+			t.Errorf("%s: %v", path, got)
+		}
 	}
 }

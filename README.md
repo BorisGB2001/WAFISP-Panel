@@ -22,9 +22,10 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 **See what happens**
 
 - **Overview**: events over time, attack classes, top attackers, sites, rules, paths and countries, and the health of every audit log. Addresses that are already blocked are shown in red.
-- **Attack log** with filters: period, site, address or subnet (`203.0.113.0/24`, `203.0.113.*`), path, rule, matched variable, class, action and anomaly score. CSV export.
+- **Attack log** with filters: period, site, address or subnet (`203.0.113.0/24`, `203.0.113.*`), path, rule, matched variable, class, action, client (browser, bot, script or scanner, read from the User-Agent) and anomaly score. CSV export.
 - **Event card**: the request, every matched rule with its variable and data, and "copy as cURL".
 - **Address search** from the menu. It shows everything known about one address: its events, sites, classes and whether it is blocked or allowed.
+- **Visitors**: all traffic from the nginx access logs, not only attacks: requests and page views over time, devices (desktop, phone, tablet), operating systems and browsers, bots and scripts, response codes, top pages and 404s, and where visitors come from (search engines such as Google, Yandex, Bing/MSN and Mail.ru, social networks, other sites, direct). Only hourly counts are kept, for a year, so ISPmanager can rotate and delete the logs.
 - **Analysis**: possible false positives (the same rule on the same site, path and variable hit by many ordinary visitors rather than scanners), plus top attackers, rules, paths and countries.
 
 **Block and unblock**
@@ -36,7 +37,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 - **Blocked list**: every blocked address with its backends, reason and expiry. Every blocked address shows in red, and its address and event pages say who blocked it (by hand, mass ban, auto-ban or a trap), when and why; an automatic ban names the exact rule that fired. From there you can change the term, unblock, or move the address to the allow list.
 - **One-click ban**: "for a day" / "for good" next to every address in the log and the top attackers.
 - **Ban by attack**: from an event, block every address that triggered the same rule, class or path in the chosen period. You see the list first and confirm it. The panel warns you when the list looks like ordinary visitors rather than attackers.
-- **Traps**: click a path in the top paths to see its events, ban everyone who requested it, or set a trap that bans whoever requests it from now on, for a set time or for good. A trap matches the start of the path or any part of it: one `.env` trap covers every site. The top lists can hide blocked addresses and trapped paths; the choice is remembered in the browser. Where nginx loads the panel's rules, every request to a trap path gets 403 and lands in the audit log, so even a plain visit is caught.
+- **Traps**: click a path in the top paths to see its events, ban everyone who requested it, or set a trap that bans whoever requests it from now on, for a set time or for good. A trap matches the start of the path or any part of it: one `.env` trap covers every site. Default traps for `/.env`, `/.git/`, `/.aws/`, `/phpinfo.php`, `/.zshrc` and `/.bashrc` come in dry run. The top lists can hide blocked addresses and trapped paths; the choice is remembered in the browser. Where nginx loads the panel's rules, every request to a trap path gets 403 and lands in the audit log, so even a plain visit is caught.
 - **Auto-ban** of addresses that keep attacking. It triggers on N denied requests within a window, or on one denied request of a dangerous class (RCE, web shell, Java by default). A repeat offender is blocked for longer each time: a day, then a week, then for good. Auto-ban starts off and in dry-run mode, where it only records whom it would block.
 - **Protected addresses**: private networks, the panel's own addresses, your own address and a configured list can never be blocked.
 

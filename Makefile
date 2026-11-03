@@ -13,7 +13,8 @@
 # boris.gb 2026-11-03 00:07 - 0.3.4: Show button aligned with the period, "today" period from midnight, deleting a trap offers to unblock the addresses it banned
 # boris.gb 2026-11-03 00:29 - 0.3.5: the period chosen in the selector is remembered until changed; "make release" tags and publishes a GitHub release
 # boris.gb 2026-11-03 00:41 - 0.4.0: updates from GitHub (signed releases, one click, automatic rollback), release signing key
-VERSION ?= 0.4.0
+# boris.gb 2026-11-03 01:16 - 0.5.0: Visitors page from the access logs, client type in the attack log, default traps
+VERSION ?= 0.5.0
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release

@@ -45,8 +45,21 @@ type Config struct {
 	Retention Duration `yaml:"retention"`
 	// SystemChannels receive the panel's own notices: auto-bans and
 	// problems with its rules (an update removed the nginx include, ...).
-	SystemChannels []string `yaml:"system_channels"`
-	Update         Update   `yaml:"update"`
+	SystemChannels []string   `yaml:"system_channels"`
+	Update         Update     `yaml:"update"`
+	AccessLogs     AccessLogs `yaml:"access_logs"`
+}
+
+// AccessLogs are the sites' nginx access logs, read for the Visitors page:
+// only counts are kept, so the logs may be rotated and deleted.
+type AccessLogs struct {
+	// Glob matches the logs, next to the audit logs by default; the site is
+	// the file name without Suffix.
+	Glob   string `yaml:"glob"`
+	Suffix string `yaml:"suffix"`
+	// Retention of the daily summaries, a year by default.
+	Retention Duration `yaml:"retention"`
+	Disabled  bool     `yaml:"disabled"`
 }
 
 // Update is the check for new releases on GitHub. Installing one is always
@@ -292,6 +305,19 @@ func (c *Config) finish(dir string) error {
 		c.Web.SessionTTL = Duration(12 * time.Hour)
 	}
 	c.GeoIPDB = abs(c.GeoIPDB)
+	if c.AccessLogs.Glob == "" {
+		dir := "/var/www/httpd-logs"
+		if c.ModSec.AuditGlob != "" {
+			dir = filepath.Dir(c.ModSec.AuditGlob)
+		}
+		c.AccessLogs.Glob = filepath.Join(dir, "*.access.log")
+	}
+	if c.AccessLogs.Suffix == "" {
+		c.AccessLogs.Suffix = ".access.log"
+	}
+	if c.AccessLogs.Retention == 0 {
+		c.AccessLogs.Retention = Duration(365 * 24 * time.Hour)
+	}
 	if c.Update.Repo == "" {
 		c.Update.Repo = "BorisGB2001/WAFISP-Panel"
 	}

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"wafisp/internal/event"
+	"wafisp/internal/ua"
 )
 
 // Summary is what the store keeps of an event in memory.
@@ -47,6 +48,9 @@ type Summary struct {
 	Country string
 	// Vars are the variables the attack rules matched (ARGS:q, ...).
 	Vars []string
+	// Client is what sent the request, from its User-Agent: kind and label
+	// ("bot", "Googlebot"; "script", "curl"; "browser", "Chrome · Windows").
+	ClientKind, Client string
 }
 
 const maxPath = 300
@@ -144,6 +148,8 @@ func (s *Store) add(ev *event.Event) bool {
 		Category: s.str(ev.Category), Reason: s.str(ev.Reason()), Country: s.str(ev.Country),
 		Top: s.str(ev.RuleID()),
 	}
+	c := ua.Parse(ev.Header("User-Agent"))
+	sum.ClientKind, sum.Client = c.Kind, s.str(c.Label())
 	for _, m := range ev.Rules {
 		if event.Evaluation(m.ID) {
 			continue
