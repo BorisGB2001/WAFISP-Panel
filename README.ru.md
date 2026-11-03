@@ -124,6 +124,7 @@ sh deploy/install.sh wafisp.yaml secrets
 
 - [Architecture](docs/ARCHITECTURE.md): как панель читает, хранит, блокирует и применяет правила
 - [Deployment](docs/DEPLOYMENT.md): установка, include для nginx, безопасность, откат, данные на диске
+- [AGENTS.md](AGENTS.md): правила для ИИ-агентов, которые разворачивают или меняют панель
 
 ## Статус
 

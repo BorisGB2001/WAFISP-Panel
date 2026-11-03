@@ -121,6 +121,7 @@ Both steps are described in [Deployment](docs/DEPLOYMENT.md), along with how to 
 
 - [Architecture](docs/ARCHITECTURE.md): how the panel reads, stores, blocks and applies rules
 - [Deployment](docs/DEPLOYMENT.md): install, the nginx include, safety, undo, data on disk
+- [AGENTS.md](AGENTS.md): rules for AI agents that deploy or change the panel
 
 ## Status
 
