@@ -200,3 +200,13 @@ func TestInstaller(t *testing.T) {
 		t.Fatal("installed a binary with a wrong signature")
 	}
 }
+
+func TestNotesIn(t *testing.T) {
+	r := Release{Notes: "Changes in English\n\n" + NotesMarker + "\nИзменения по-русски\n"}
+	if r.NotesIn("ru") != "Изменения по-русски" || r.NotesIn("en") != "Changes in English" {
+		t.Fatalf("%q / %q", r.NotesIn("ru"), r.NotesIn("en"))
+	}
+	if (Release{Notes: "only English"}).NotesIn("ru") != "only English" {
+		t.Fatal("notes without a translation")
+	}
+}

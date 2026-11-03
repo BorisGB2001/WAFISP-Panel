@@ -6,6 +6,7 @@
 </form>
 
 {{if $d.PolicyErr}}<div class="note err">{{t "Panel rules: %s" $d.PolicyErr}}{{if .IsAdmin}} <form class="inline" method="post" action="/policy/apply"><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="back" value="/"><button class="btn">{{t "Apply again"}}</button></form>{{end}}</div>{{end}}
+{{if $d.NoWAF}}<div class="note err">✕ {{t "%d sites have no WAF: attacks on them are not blocked or seen." $d.NoWAF}} <a href="/sites">{{t "Sites"}} →</a></div>{{end}}
 {{range $b, $e := $d.BlockErrs}}<div class="note err">{{t "Blocking backend %s: %s" $b $e}}</div>{{end}}
 
 <div class="tiles">

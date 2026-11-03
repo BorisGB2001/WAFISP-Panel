@@ -55,6 +55,8 @@ block:
   ports: "80,443"
   mgrctl: /usr/local/mgr5/sbin/mgrctl
   # Never blocked: the host, the office, the VPN.
+  # boris.gb 2026-11-03 01:36 - Cloudflare's networks are never blocked; set true only if nginx restores real client IPs (real_ip).
+  # block_cloudflare: false
   protected: [10.0.0.0/8, 100.64.0.0/10, 192.0.2.10]
 
 channels:

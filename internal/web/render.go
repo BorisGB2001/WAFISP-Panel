@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"wafisp/internal/block"
 
 	"wafisp/internal/auth"
 	"wafisp/internal/event"
@@ -93,6 +94,7 @@ var funcs = template.FuncMap{
 		}
 		return []string{k, ""}
 	},
+	"cloudflare": block.IsCloudflare,
 	"hasSuffix":  strings.HasSuffix,
 	"hasPrefix":  strings.HasPrefix,
 	"trimSuffix": strings.TrimSuffix,

@@ -277,6 +277,16 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	}
 	cancel()
 
+	// Blocks made before an address became protected (Cloudflare's, since
+	// 0.5.1) are lifted: they cut off real visitors.
+	if lifted, err := blocks.LiftProtected(actx); len(lifted) > 0 || err != nil {
+		for _, e := range lifted {
+			ws.Audit().Log("system", "", "unblock", e.IP+": protected address (e.g. Cloudflare), blocked by "+e.By)
+		}
+		if err != nil {
+			log.Error("block: lift protected", "err", err)
+		}
+	}
 	if !dryRun {
 		go blocks.Run(ctx, func(ip string, err error) {
 			detail := ip
@@ -481,8 +491,11 @@ func newBlocks(cfg *config.Config, pol *policy.Manager, log *slog.Logger) (*bloc
 		}
 		m.Protected = append(m.Protected, pr)
 	}
-	// The host's own addresses are never blocked either.
+	// The host's own addresses are never blocked either, nor Cloudflare's.
 	m.Protected = append(m.Protected, localPrefixes()...)
+	if !cfg.Block.BlockCloudflare {
+		m.Protected = append(m.Protected, block.Cloudflare...)
+	}
 	for _, b := range cfg.Block.Backends {
 		switch b {
 		case "ipset":

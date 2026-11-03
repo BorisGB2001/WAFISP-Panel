@@ -1,14 +1,25 @@
 {{define "content"}}
 {{$d := .Data}}
+<div class="tiles">
+  <div class="tile"><span>{{t "Sites"}}</span><b>{{$d.Total}}</b><small>{{t "on this server"}}</small></div>
+  <div class="tile"><span>{{t "Blocking attacks"}}</span><b>{{index $d.Sum "blocking"}}</b><small>{{t "the WAF stops attacks"}}</small></div>
+  <div class="tile"><span>{{t "Logging only"}}</span><b class="{{if index $d.Sum "detecting"}}warn{{end}}">{{index $d.Sum "detecting"}}</b><small>DetectionOnly</small></div>
+  <div class="tile"><span>{{t "Without WAF"}}</span><b class="{{if index $d.Sum "none"}}bad{{end}}">{{index $d.Sum "none"}}</b><small>{{t "nothing is inspected"}}</small></div>
+</div>
+{{if index $d.Sum "none"}}<div class="note err">✕ {{t "%d sites have no WAF at all: attacks on them are neither blocked nor logged, and the panel sees nothing. Turn ModSecurity on for them in ISPmanager (the site's settings); the panel does not edit ISPmanager's configuration." (index $d.Sum "none")}}</div>{{end}}
+{{if index $d.Sum "detecting"}}<div class="note warn">◐ {{t "%d sites only log attacks (DetectionOnly): the panel sees them, but the WAF blocks nothing there." (index $d.Sum "detecting")}}</div>{{end}}
+
 <section class="card">
   <p class="muted small">{{t "Sites and their WAF mode as ISPmanager set it. The panel can override the mode without touching ISPmanager: its rule switches the engine for the site's host names. “As set in ISPmanager” removes the override."}}</p>
   <div class="scroll"><table>
-    <thead><tr><th>{{t "Site"}}</th><th>{{t "Owner"}}</th><th>WAF</th><th>{{t "Events 24 h"}}</th><th>{{t "7 days"}}</th><th>{{t "Last"}}</th><th>{{t "Own rule files"}}</th>{{if .IsAdmin}}<th>{{t "Mode"}}</th>{{end}}</tr></thead>
+    <thead><tr><th>{{t "Site"}}</th><th>{{t "Owner"}}</th><th>WAF</th><th>{{t "Protection"}}</th><th>{{t "Traffic 24 h"}}</th><th>{{t "Events 24 h"}}</th><th>{{t "7 days"}}</th><th>{{t "Last"}}</th><th>{{t "Own rule files"}}</th>{{if .IsAdmin}}<th>{{t "Mode"}}</th>{{end}}</tr></thead>
     <tbody>
-    {{range $d.Sites}}<tr class="{{if or (eq .WAF "Off") (eq .WAF "") (eq .Override "Off")}}warnrow{{end}}">
+    {{range $d.Sites}}<tr class="{{if eq .Protection "none"}}badrow{{else if eq .Protection "detecting"}}warnrow{{end}}">
       <td><b><a href="/attacks?site={{.Name}}">{{.Name}}</a></b><br><small class="muted">{{join .Hosts " "}}</small></td>
       <td>{{.Owner}}</td>
       <td>{{template "engine" .WAF}}{{if .Override}}<br>→ {{template "engine" .Override}} <small class="muted">{{t "panel"}}</small>{{end}}</td>
+      <td class="nowrap">{{if eq .Protection "blocking"}}<span class="badge good">● {{t "protected"}}</span>{{else if eq .Protection "detecting"}}<span class="badge warn">◐ {{t "logging only"}}</span>{{else}}<span class="badge bad">✕ {{t "unprotected"}}</span>{{end}}</td>
+      <td>{{if lt .Traffic24 0}}—{{else}}<a href="/visitors?site={{.Name}}">{{num (int64 .Traffic24)}}</a>{{end}}</td>
       <td>{{.Events24}}{{if .Passed24}} <small class="warn">({{t "%d passed" .Passed24}})</small>{{end}}</td>
       <td>{{.Week}}</td>
       <td class="nowrap">{{if .LastEvent.IsZero}}—{{else}}{{ago .LastEvent}}{{end}}</td>
@@ -33,4 +44,4 @@
 </section>
 {{end}}
 
-{{define "engine"}}{{if eq . "On"}}<span class="badge good">● {{t "Blocking"}}</span>{{else if eq . "DetectionOnly"}}<span class="badge warn">◐ DetectionOnly</span>{{else if eq . "Off"}}<span class="badge bad">✕ {{t "Off"}}</span>{{else}}<span class="badge">{{t "no WAF"}}</span>{{end}}{{end}}
+{{define "engine"}}{{if eq . "On"}}<span class="badge good">● {{t "blocks attacks"}}</span>{{else if eq . "DetectionOnly"}}<span class="badge warn">◐ DetectionOnly</span>{{else if eq . "Off"}}<span class="badge bad">✕ {{t "Off"}}</span>{{else}}<span class="badge">{{t "no WAF"}}</span>{{end}}{{end}}

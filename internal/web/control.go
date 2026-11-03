@@ -49,6 +49,35 @@ type siteView struct {
 	Hosts, Extra                         []string
 	Events24, Denied24, Passed24, Week   int
 	LastEvent                            time.Time
+	// Protection is what the WAF does for the site now, the panel's
+	// override included: "blocking", "detecting" (logs only) or "none".
+	Protection string
+	Traffic24  int // requests in the access log, -1 when unknown
+}
+
+// protection is what the WAF effectively does for a site.
+func protection(waf, override string) string {
+	switch {
+	case waf == "" || waf == "Off" || override == "Off":
+		return "none"
+	case waf == "DetectionOnly" || override == "DetectionOnly":
+		return "detecting"
+	}
+	return "blocking"
+}
+
+// unprotected counts the sites where the WAF blocks nothing.
+func (s *Server) unprotected() (none, detecting int) {
+	st := s.Policy.State()
+	for _, x := range s.Sites.Sites() {
+		switch protection(x.WAF, st.ModeOf(x.Name)) {
+		case "none":
+			none++
+		case "detecting":
+			detecting++
+		}
+	}
+	return
 }
 
 func (s *Server) sitesPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
@@ -82,7 +111,28 @@ func (s *Server) sitesPage(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		}
 		return true
 	})
-	s.render(w, r, rc, "sites.html", page{Title: "Sites", Active: "sites", Data: map[string]any{"Sites": list}})
+	traffic := map[string]int{}
+	if s.Visitors != nil {
+		traffic = s.Visitors.Report(time.Now().Add(-24*time.Hour), time.Now(), "").Sites
+	}
+	sum := map[string]int{}
+	for i := range list {
+		list[i].Protection = protection(list[i].WAF, list[i].Override)
+		list[i].Traffic24 = -1
+		if s.Visitors != nil {
+			list[i].Traffic24 = traffic[list[i].Name]
+		}
+		sum[list[i].Protection]++
+	}
+	// Unprotected sites first, the busiest of them on top.
+	rank := map[string]int{"none": 0, "detecting": 1, "blocking": 2}
+	slices.SortStableFunc(list, func(a, b siteView) int {
+		if rank[a.Protection] != rank[b.Protection] {
+			return rank[a.Protection] - rank[b.Protection]
+		}
+		return b.Traffic24 - a.Traffic24
+	})
+	s.render(w, r, rc, "sites.html", page{Title: "Sites", Active: "sites", Data: map[string]any{"Sites": list, "Sum": sum, "Total": len(list)}})
 }
 
 func (s *Server) siteMode(w http.ResponseWriter, r *http.Request, rc *reqCtx) {

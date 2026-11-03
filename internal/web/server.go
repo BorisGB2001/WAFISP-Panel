@@ -182,6 +182,7 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /users/{name}/delete", s.userDelete)
 	admin("GET /audit", s.auditPage)
 	admin("GET /update", s.updatePage)
+	admin("GET /update/status", s.updateStatus)
 	admin("POST /update/check", s.updateCheck)
 	admin("POST /update/install", s.updateInstall)
 	admin("POST /update/rollback", s.updateRollback)

@@ -66,6 +66,25 @@ type State struct {
 	Status    *Status
 	HasPrev   bool
 	Busy      bool
+	// Installing is true while an install or rollback runs.
+	Installing bool
+}
+
+// NotesMarker separates the English release notes from the Russian ones
+// in a release body; make release adds it.
+const NotesMarker = "<!-- ru -->"
+
+// NotesIn is the part of the release notes in lang, all of them when the
+// release has no translation.
+func (r Release) NotesIn(lang string) string {
+	en, ru, ok := strings.Cut(r.Notes, NotesMarker)
+	switch {
+	case !ok:
+		return strings.TrimSpace(r.Notes)
+	case lang == "ru" && strings.TrimSpace(ru) != "":
+		return strings.TrimSpace(ru)
+	}
+	return strings.TrimSpace(en)
 }
 
 // Runner runs a command; tests replace it.
@@ -185,6 +204,15 @@ func (u *Updater) State() State {
 	u.mu.Unlock()
 	st.Available = st.Latest != nil && Newer(st.Latest.Version, u.Current)
 	st.Status = ReadStatus(u.Dir)
+	if s := st.Status; s != nil && s.State == "installing" {
+		// The installer reports within a few minutes; one that never did
+		// (killed, rebooted) must not hide the buttons for ever.
+		if time.Since(s.At) > 5*time.Minute {
+			s.State, s.Message = "failed", "the installer did not report back"
+		} else {
+			st.Installing = true
+		}
+	}
 	if _, err := os.Stat(u.Exe + ".prev"); err == nil {
 		st.HasPrev = true
 	}

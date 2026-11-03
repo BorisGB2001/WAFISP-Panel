@@ -72,6 +72,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		"PolicyErr":  lastErr,
 		"Exclusions": len(s.Policy.State().Exclusions),
 	}
+	data["NoWAF"], _ = s.unprotected()
 	s.render(w, r, rc, "dashboard.html", page{Title: "Overview", Active: "dash", Data: data})
 }
 

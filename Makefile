@@ -14,7 +14,8 @@
 # boris.gb 2026-11-03 00:29 - 0.3.5: the period chosen in the selector is remembered until changed; "make release" tags and publishes a GitHub release
 # boris.gb 2026-11-03 00:41 - 0.4.0: updates from GitHub (signed releases, one click, automatic rollback), release signing key
 # boris.gb 2026-11-03 01:16 - 0.5.0: Visitors page from the access logs, client type in the attack log, default traps
-VERSION ?= 0.5.0
+# boris.gb 2026-11-03 01:36 - 0.5.1: Cloudflare addresses never blocked (old blocks lifted), sites without WAF highlighted, update page waits and reloads, notes in the panel's language
+VERSION ?= 0.5.1
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release
@@ -33,6 +34,7 @@ test:
 # Linux binary and its checksum, so the version shows on GitHub. Needs a clean tree, the commit pushed, and gh.
 # boris.gb 2026-11-03 00:40 - the release is signed: the panel's updater installs only binaries this key signed.
 RELEASE_KEY ?= $(HOME)/.config/wafisp-release/release.key
+# boris.gb 2026-11-03 01:34 - Russian release notes from docs/releases/v$(VERSION).ru.md, shown by the panel in Russian.
 
 release: test linux
 	@test -z "$$(git status --porcelain)" || { echo "commit first" >&2; exit 1; }
@@ -40,4 +42,4 @@ release: test linux
 	go run ./cmd/wafisp -sign $(RELEASE_KEY) bin/wafisp-linux-amd64
 	git tag -a v$(VERSION) -m "$$(git log -1 --format=%s)"
 	git push origin v$(VERSION)
-	gh release create v$(VERSION) bin/wafisp-linux-amd64 bin/wafisp-linux-amd64.sha256 bin/wafisp-linux-amd64.sig --title "v$(VERSION)" --notes "$$(git log -1 --format=%B | sed '/^Co-Authored-By/d')"
+	gh release create v$(VERSION) bin/wafisp-linux-amd64 bin/wafisp-linux-amd64.sha256 bin/wafisp-linux-amd64.sig --title "v$(VERSION)" --notes "$$(git log -1 --format=%B | sed '/^Co-Authored-By/d'; if [ -f docs/releases/v$(VERSION).ru.md ]; then printf '\n\n<!-- ru -->\n'; cat docs/releases/v$(VERSION).ru.md; fi)"

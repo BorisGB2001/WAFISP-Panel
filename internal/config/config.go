@@ -112,6 +112,11 @@ type Block struct {
 	Mgrctl string `yaml:"mgrctl"`
 	// Protected addresses and subnets can never be blocked.
 	Protected []string `yaml:"protected"`
+	// BlockCloudflare lets the panel block Cloudflare's addresses. Leave it
+	// off unless nginx restores the visitors' real addresses (real_ip): for
+	// a site behind Cloudflare those are its edge servers, shared by many
+	// visitors.
+	BlockCloudflare bool `yaml:"block_cloudflare"`
 }
 
 type HTTP struct {

@@ -130,3 +130,32 @@ func TestParseKV(t *testing.T) {
 		t.Fatalf("%v", m)
 	}
 }
+
+func TestCloudflare(t *testing.T) {
+	for ip, want := range map[string]bool{"104.22.219.33": true, "162.158.94.39": true, "2606:4700::1": true, "104.16.0.0/16": true,
+		"203.0.113.5": false, "8.8.8.8": false, "x": false} {
+		if IsCloudflare(ip) != want {
+			t.Errorf("%s: %v", ip, !want)
+		}
+	}
+	_, err := normalize("162.158.94.39", "", Cloudflare)
+	if err == nil || !strings.Contains(err.Error(), "Cloudflare") {
+		t.Fatalf("blocked a Cloudflare address: %v", err)
+	}
+	// Blocks from before the protection are lifted.
+	ip := &memIPSet{}
+	m := &Manager{File: filepath.Join(t.TempDir(), "b.json"), Backends: []Backend{ip}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	m.BlockMany(context.Background(), []Entry{{IP: "162.158.94.39", Backends: []string{"ipset"}, By: "autoban"}, {IP: "203.0.113.5", Backends: []string{"ipset"}, By: "admin"}})
+	m.Protected = Cloudflare
+	lifted, err := m.LiftProtected(context.Background())
+	if err != nil || len(lifted) != 1 || lifted[0].IP != "162.158.94.39" || len(m.Entries()) != 1 || !slices.Equal(ip.ips, []string{"203.0.113.5"}) {
+		t.Fatalf("lifted %v, left %v, ipset %v, %v", lifted, m.Entries(), ip.ips, err)
+	}
+}
+
+type memIPSet struct{ ips []string }
+
+func (m *memIPSet) Name() string                               { return "ipset" }
+func (m *memIPSet) Ensure(context.Context) error               { return nil }
+func (m *memIPSet) Sync(_ context.Context, ips []string) error { m.ips = ips; return nil }
+func (m *memIPSet) List(context.Context) ([]string, error)     { return m.ips, nil }

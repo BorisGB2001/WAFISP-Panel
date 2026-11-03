@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 )
@@ -12,6 +13,22 @@ func (s *Server) updatePage(w http.ResponseWriter, r *http.Request, rc *reqCtx) 
 		data["S"] = s.Updater.State()
 	}
 	s.render(w, r, rc, "update.html", page{Title: "Update", Active: "update", Data: data})
+}
+
+// updateStatus is polled by the update page while the panel restarts.
+func (s *Server) updateStatus(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
+	out := map[string]any{"version": s.Version}
+	if s.Updater != nil {
+		if st := s.Updater.State(); st.Status != nil {
+			out["state"], out["to"], out["message"] = st.Status.State, st.Status.To, st.Status.Message
+			if st.Installing {
+				out["state"] = "installing"
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
@@ -49,7 +66,8 @@ func (s *Server) updateInstall(w http.ResponseWriter, r *http.Request, rc *reqCt
 		return
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "update", s.Version+" → "+v)
-	flashRedirect(w, r, "/update", tr(r, "Installing %s: the panel restarts in a few seconds. Reload this page in a minute.", v), "")
+	// The page shows the running update and reloads itself when it is done.
+	flashRedirect(w, r, "/update", "", "")
 }
 
 func (s *Server) updateRollback(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
@@ -65,5 +83,5 @@ func (s *Server) updateRollback(w http.ResponseWriter, r *http.Request, rc *reqC
 		return
 	}
 	s.audit.Log(rc.User.Name, clientIP(r), "update.rollback", "from "+s.Version)
-	flashRedirect(w, r, "/update", tr(r, "Rolling back: the panel restarts in a few seconds. Reload this page in a minute."), "")
+	flashRedirect(w, r, "/update", "", "")
 }

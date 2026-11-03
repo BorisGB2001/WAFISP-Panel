@@ -170,6 +170,9 @@ func normalize(s, requester string, protected []netip.Prefix) (string, error) {
 		return "", i18n.Errorf("The subnet contains your own address — you would lose access")
 	}
 	for _, x := range protected {
+		if p.Overlaps(x) && IsCloudflare(x.String()) {
+			return "", i18n.Errorf("%s is Cloudflare's: blocking it would cut off the visitors of every site behind Cloudflare. Block the attacker in Cloudflare instead.", p)
+		}
 		if p.Overlaps(x) {
 			return "", i18n.Errorf("The subnet overlaps the protected address %s", x)
 		}

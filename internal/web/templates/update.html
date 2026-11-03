@@ -12,7 +12,9 @@
   {{if not $s.Checked.IsZero}}{{t "Last check: %s." (ago $s.Checked)}}{{end}}</p>
   {{if $s.CheckErr}}<div class="note err">{{t "Could not ask GitHub: %s" $s.CheckErr}}</div>{{end}}
   {{with $s.Status}}
-    {{if eq .State "installing"}}<div class="note warn">⏳ {{t "An update is running (started %s). The panel restarts; reload the page in a minute." (ago .At)}}</div>
+    {{if eq .State "installing"}}<div class="note warn" id="upd-wait" data-start="{{.At.Format "2006-01-02T15:04:05Z07:00"}}" data-timeout="{{t "The panel has not come back for 3 minutes. Check the service on the server: systemctl status wafisp"}}">
+      ⏳ <span class="msg">{{t "Updating: the panel restarts and checks the new version. This page reloads by itself when it is done."}}</span> <b><span class="secs">0</span> {{t "s"}}</b>
+      <br><progress max="90" value="0"></progress></div>
     {{else if eq .State "ok"}}<div class="note ok">✓ {{if eq .Message "rollback"}}{{t "Rolled back to %s" .To}}{{else}}{{t "Updated from %s to %s" .From .To}}{{end}} · {{dt .At}}</div>
     {{else if eq .State "rolled_back"}}<div class="note err">↩ {{t "Version %s did not start and was rolled back to %s: %s" .To .From .Message}} · {{dt .At}}</div>
     {{else if eq .State "failed"}}<div class="note err">✗ {{t "The last update failed: %s" .Message}} · {{dt .At}}</div>{{end}}
@@ -23,10 +25,10 @@
 <section class="card stack">
   <h2>{{if $s.Available}}⬆ {{t "Version %s is available" .Version}}{{else}}✓ {{t "This is the latest version (%s)" .Version}}{{end}}</h2>
   <p class="muted small">{{dt .Published}} · <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{t "Release on GitHub"}}</a></p>
-  {{if .Notes}}<pre class="notes">{{.Notes}}</pre>{{end}}
-  {{if and $s.Available $.IsAdmin}}
+  {{with .NotesIn $.Lang}}<pre class="notes">{{.}}</pre>{{end}}
+  {{if and $s.Available $.IsAdmin (not $s.Installing)}}
   {{if and .BinURL .SigURL}}
-  <form method="post" action="/update/install" class="stack">
+  <form method="post" action="/update/install" class="stack" data-confirm="{{t "Update the panel to %s now? It restarts and is unavailable for a few seconds." .Version}}">
     <input type="hidden" name="csrf" value="{{$.CSRF}}">
     <p class="small">{{t "The panel downloads the release, checks its signature, its version and that it accepts the current config. Then it swaps the binary (keeping this one) and restarts. If the new version does not come up within 90 seconds, this one is put back."}}</p>
     <label class="radio"><input type="checkbox" name="confirm" value="yes" required> {{t "Update now; the panel is unavailable for a few seconds"}}</label>
@@ -37,11 +39,11 @@
 </section>
 {{end}}
 
-{{if and $s.HasPrev $.IsAdmin}}
+{{if and $s.HasPrev $.IsAdmin (not $s.Installing)}}
 <section class="card">
   <h2>{{t "Roll back"}}</h2>
   <p class="muted small">{{t "The previous binary is kept. Rolling back swaps it with the running one and restarts the panel."}}</p>
-  <form method="post" action="/update/rollback" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn danger">↩ {{t "Roll back to the previous version"}}</button></form>
+  <form method="post" action="/update/rollback" class="inline" data-confirm="{{t "Roll the panel back to the previous version? It restarts."}}"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="btn danger">↩ {{t "Roll back to the previous version"}}</button></form>
 </section>
 {{end}}
 {{end}}
