@@ -142,6 +142,7 @@ var ruWAFISP = map[string]string{
 	"The same rule on the same site, path and variable, triggered by many different visitors — addresses that touched at most 3 paths in the period. Scanners try hundreds of URLs and drop out; a form the WAF breaks is hit by every visitor who uses it. Open the events to check, then add an exclusion.": "Одно и то же правило на одном сайте, пути и переменной срабатывает у многих разных посетителей — адресов, обращавшихся за период не более чем к 3 путям. Сканеры перебирают сотни URL и сюда не попадают, а сломанную WAF-ом форму задевает каждый, кто ею пользуется. Откройте события, проверьте и добавьте исключение.",
 	"Events 24 h":                     "События за 24 ч",
 	"Events over time":                "События по времени",
+	"Event":                           "Событие",
 	"Events":                          "События",
 	"Everything about this address":   "Всё об этом адресе",
 	"Exclude…":                        "Исключить…",
