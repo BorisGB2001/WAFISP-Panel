@@ -100,6 +100,9 @@ type AccessLogs struct {
 	// Retention of the daily summaries, a year by default.
 	Retention Duration `yaml:"retention"`
 	Disabled  bool     `yaml:"disabled"`
+	// ReadOnly hides the buttons that turn a site's request log on and off
+	// in ISPmanager (through mgrctl) on the Visitors page.
+	ReadOnly bool `yaml:"read_only"`
 }
 
 // Update is the check for new releases on GitHub. Installing one is always

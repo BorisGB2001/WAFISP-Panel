@@ -133,6 +133,8 @@ access_logs:
   # glob: /var/www/httpd-logs/*.access.log   # next to the audit logs by default
   # retention: 8760h                         # a year
   # disabled: true
+  # boris.gb 2026-11-03 21:42 - the Visitors page can turn a site's request log on and off in ISPmanager (mgrctl webdomain.edit); true hides the buttons
+  # read_only: true
 
 # boris.gb 2026-11-03 16:07 - blocks shared with the panels of other servers through a private GitHub repository.
 # Every panel publishes its own blocks, signed with its key, and applies those of the peers listed here.

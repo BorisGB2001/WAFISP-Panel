@@ -20,6 +20,8 @@ The installer checks the new binary with the new config (`-check`, read-only) be
 
 The Visitors page reads the sites' nginx access logs (`access_logs.glob`, by default `*.access.log` next to the audit logs; ISPmanager writes them to `/var/www/httpd-logs/`). It needs nginx's standard "combined" format, which ISPmanager uses. The panel follows each log like the audit logs: it remembers how far it read, and after a rotation it starts over on the new file. It keeps only hourly counts per site, in `data_dir/visitors/YYYY-MM-DD.json.gz`, for `access_logs.retention` (a year). So the logs can be rotated and deleted by ISPmanager without losing the statistics; lines appended in the seconds between the panel's last read and a rotation may be missed. Set `access_logs.disabled: true` to turn it off.
 
+ISPmanager writes a site's access log only when the site's request log is on (Sites → the site → Logs → Request log); otherwise its vhost has `access_log off` and the site is not counted. The Visitors page shows which sites have it off, and an admin can turn it on or off there, for one site or for all of them at once. The panel does this the way ISPmanager's own form does, through `mgrctl -m ispmgr webdomain.edit elid=<site> log_access=on|off`; ISPmanager then rewrites the vhost and reloads nginx itself, and rotates the new logs. Each switch goes to the audit log. Set `access_logs.read_only: true` to hide the buttons.
+
 The same lines feed the auto-ban's access-log rules (Auto-ban page, "From the access logs"): N pages answered 404 from one address within the window (images, styles, scripts and other assets do not count), N POSTs to the login pages, or N requests a minute. Known search engine bots are skipped. The rules are off and in dry run until an admin turns them on, apart from the WAF rules, and share their durations, escalation and backends. Lines older than the window, such as a log read from its start after the first install, count towards nothing. The log is read every 10 seconds, so a ban lands within about that.
 
 ## Default traps
@@ -82,6 +84,7 @@ After that, the `modsec` blocking backend, the allow list, site modes and exclus
 - Values in rules (ids, tags, variables, paths, host names) are validated against strict patterns.
 - The ipset rule drops only `block.ports` (80,443 by default), so a mistaken block never cuts SSH or the ISPmanager panel.
 - Never blocked: the requester's address, private ranges, the host's own addresses and `block.protected`.
+- A site's request log is switched only through ISPmanager (`mgrctl webdomain.edit`), by an admin's click; the panel never edits the vhost. `access_logs.read_only: true` turns this off.
 - An exclusion for every site and switching a site's WAF off need an explicit confirmation; every action needs a reason and goes to the audit log.
 
 ## Undo everything

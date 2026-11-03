@@ -27,6 +27,10 @@ type Site struct {
 	// Extra are the site's own rule files next to ISPmanager's
 	// (zz-waf-exclusions.conf, ...).
 	Extra []string
+	// AccessLog is whether nginx writes the site's request log: ISPmanager
+	// puts access_log <file> in the vhost when its request log is on and
+	// only access_log off when it is not.
+	AccessLog bool
 }
 
 type Reader struct {
@@ -43,6 +47,7 @@ var (
 	engineRe     = regexp.MustCompile(`^\s*SecRuleEngine\s+(\w+)`)
 	auditRe      = regexp.MustCompile(`^\s*SecAuditLog\s+(\S+)`)
 	modsecOnRe   = regexp.MustCompile(`^\s*modsecurity\s+(on|off)\s*;`)
+	accessLogRe  = regexp.MustCompile(`^\s*access_log\s+([^\s;]+)`)
 )
 
 // Sites returns the sites, re-read at most once a minute.
@@ -54,6 +59,13 @@ func (r *Reader) Sites() []Site {
 	}
 	r.cache, r.at = r.read(), time.Now()
 	return r.cache
+}
+
+// Forget drops the cache, so the next call reads the vhosts again.
+func (r *Reader) Forget() {
+	r.mu.Lock()
+	r.cache = nil
+	r.mu.Unlock()
 }
 
 // Get returns one site by name.
@@ -95,6 +107,9 @@ func (r *Reader) read() []Site {
 						s.Hosts = append(s.Hosts, h)
 					}
 				}
+			}
+			if m := accessLogRe.FindStringSubmatch(line); m != nil && m[1] != "off" {
+				s.AccessLog = true
 			}
 		})
 	}

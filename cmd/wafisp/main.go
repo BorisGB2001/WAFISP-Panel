@@ -266,6 +266,11 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	ws := &web.Server{Cfg: cfg, Share: syncer, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
 		Autoban: ban, Health: health, Updater: upd, Visitors: visits, VisitorLogs: visitLogs,
 		Senders: senders, Stats: st, History: hist, Rules: p, Log: log, Version: version, RuleFile: ruleFile}
+	if !cfg.AccessLogs.Disabled && !cfg.AccessLogs.ReadOnly {
+		if _, err := os.Stat(cfg.Block.Mgrctl); err == nil {
+			ws.LogSwitch = &sites.LogSwitch{Mgrctl: cfg.Block.Mgrctl, Sites: siteReader}
+		}
+	}
 	if err := ws.Open(activeRules); err != nil {
 		return fmt.Errorf("web: %w", err)
 	}

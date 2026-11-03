@@ -57,6 +57,9 @@ type Server struct {
 	Store     *store.Store
 	Collector *collector.Collector
 	Sites     *sites.Reader
+	// LogSwitch turns the sites' request logs on and off in ISPmanager;
+	// nil hides the buttons.
+	LogSwitch *sites.LogSwitch
 	Policy    *policy.Manager
 	Blocks    *block.Manager
 	Autoban   *autoban.Engine
@@ -203,6 +206,7 @@ func (s *Server) Handler() http.Handler {
 	admin("POST /sites/{site}/mode", s.siteMode)
 	admin("POST /policy/apply", s.policyApply)
 	admin("POST /autoban", s.autobanSave)
+	admin("POST /visitors/log", s.visitorsLog)
 	admin("POST /traps", s.trapAdd)
 	admin("POST /traps/defaults", s.trapDefaults)
 	admin("POST /traps/{id}/enabled", s.trapEnabled)

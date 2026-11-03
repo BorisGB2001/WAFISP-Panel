@@ -9,6 +9,29 @@
 <section class="card"><p>{{t "Reading the access logs is off (access_logs.disabled in the config)."}}</p></section>
 {{else}}{{$a := $d.Rep.Total}}
 {{if not $d.Files}}<div class="note warn">{{t "No access logs match %s yet." $d.Glob}}</div>{{end}}
+{{if $d.F.Site}}{{if $d.SiteKnown}}
+<section class="card logswitch">
+  <div class="cardhead"><h3>{{t "Request log"}}</h3>
+  {{if $d.SiteLog}}<span class="badge good">● {{t "on in ISPmanager"}}</span>{{else}}<span class="badge bad">✕ {{t "off in ISPmanager"}}</span>{{end}}</div>
+  {{if not $d.SiteLog}}<p>{{t "nginx does not write the request log of this site, so there is nothing to count here and auto-ban by the access logs does not see it. Visitors are counted from the moment the log is turned on."}}</p>{{end}}
+  {{if and $.IsAdmin $d.CanSwitch}}<form method="post" action="/visitors/log" class="inline">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="site" value="{{$d.F.Site}}">
+    {{if $d.SiteLog}}<input type="hidden" name="on" value="0"><button class="btn">{{t "Turn the request log off"}}</button>
+    {{else}}<input type="hidden" name="on" value="1"><button class="btn primary">{{t "Turn the request log on"}}</button>{{end}}
+    <small class="muted">{{t "ISPmanager rewrites the site's config and reloads nginx; the logs are rotated by ISPmanager."}}</small>
+  </form>{{end}}
+</section>
+{{end}}{{else if $d.LogOff}}
+<section class="card logswitch">
+  <div class="cardhead"><h3>{{t "Request log"}}</h3><span class="badge warn">{{t "off for %d sites" (len $d.LogOff)}}</span></div>
+  <p class="small">{{t "These sites are not counted:"}} {{range $i, $n := $d.LogOff}}{{if $i}}, {{end}}<a href="/visitors?site={{$n}}">{{$n}}</a>{{end}}</p>
+  {{if and $.IsAdmin $d.CanSwitch}}<form method="post" action="/visitors/log" class="inline">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="all" value="1"><input type="hidden" name="on" value="1">
+    <button class="btn primary">{{t "Turn the request log on for all of them"}}</button>
+    <small class="muted">{{t "ISPmanager rewrites each site's config and reloads nginx; the logs are rotated by ISPmanager."}}</small>
+  </form>{{end}}
+</section>
+{{end}}
 <div class="tiles">
   <div class="tile"><span>{{t "Requests"}}</span><b>{{num (int64 $a.Requests)}}</b><small>{{t "all, with pictures, scripts and bots"}}</small></div>
   <div class="tile"><span>{{t "Page views"}}</span><b>{{num (int64 $a.Views)}}</b><small>{{t "by browsers, without assets"}}</small></div>

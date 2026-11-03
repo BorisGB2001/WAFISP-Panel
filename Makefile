@@ -18,7 +18,8 @@
 # boris.gb 2026-11-03 15:57 - 0.5.2: auto-ban from the access logs (404s on pages, login attempts, request rate), "Event" title in Russian
 # boris.gb 2026-11-03 16:18 - 0.6.0: shared blocks between servers through a private GitHub repository (signed lists, dry run, each server keeps its protected and allow lists)
 # boris.gb 2026-11-03 16:31 - 0.6.1: shared blocks over git+SSH with a per-server deploy key (no token on the servers), GitHub host key pinned
-VERSION ?= 0.6.1
+# boris.gb 2026-11-03 21:46 - 0.6.2: Visitors page shows sites with the request log off and turns it on/off in ISPmanager (mgrctl webdomain.edit)
+VERSION ?= 0.6.2
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release
