@@ -22,6 +22,7 @@
     <a href="/blocked" class="sub {{if eq .Active "blocked"}}on{{end}}">{{t "Blocked list"}}{{if .BlockedCount}} <span class="count">{{.BlockedCount}}</span>{{end}}</a>
     <a href="/autoban" class="{{if eq .Active "autoban"}}on{{end}}">{{t "Auto-ban"}}</a>
     <a href="/traps" class="sub {{if eq .Active "traps"}}on{{end}}">{{t "Traps"}}</a>
+    <a href="/share" class="sub {{if eq .Active "share"}}on{{end}}">{{t "Shared blocks"}}</a>
     <a href="/exclusions" class="{{if eq .Active "exclusions"}}on{{end}}">{{t "Exclusions"}}</a>
     <a href="/alerts" class="{{if eq .Active "alerts"}}on{{end}}">{{t "Alerts"}}</a>
     <a href="/rules" class="{{if eq .Active "rules"}}on{{end}}">{{t "Alert rules"}}</a>
@@ -105,7 +106,7 @@
 {{with .Rule}}{{t "Rule"}}: {{template "banrule" .}}<br>{{end}}
 {{t "Reason"}}: «{{.Reason}}» · {{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{t "until"}} {{dt .Expires}} ({{left .Expires}}){{end}} · {{join .Backends ", "}}{{if .Site}} · {{t "from an attack on %s" .Site}}{{end}}</div>{{end}}
 
-{{define "blockhow"}}{{if eq .Via "trap"}}{{t "automatically by the panel, path trap"}}{{else if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically by the panel, auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
+{{define "blockhow"}}{{if .Peer}}<a href="/share">{{t "from server %s" .Peer}}</a>{{else if eq .Via "trap"}}{{t "automatically by the panel, path trap"}}{{else if or (eq .Via "autoban") (eq .By "autoban")}}{{t "automatically by the panel, auto-ban"}}{{else if eq .Via "massban"}}{{t "by %s, mass ban" .By}}{{else}}{{t "manually by %s" .By}}{{end}}{{end}}
 
 {{/* banrule: . is a block.Rule — which automatic rule fired */}}
 {{define "banrule"}}{{if eq .Kind "trap"}}<a href="/traps">{{t "trap #%d" .Trap}}</a>: {{if eq .Match "contains"}}{{t "requests whose path contains %s, on %s" .Path (or .Site (t "every site"))}}{{else}}{{t "requests to %s on %s" .Path (or .Site (t "every site"))}}{{end}}{{else if eq .Kind "threshold"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "%d denied requests within %d min" .Count .WindowMin}}{{else if eq .Kind "instant"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{t "one denied request of class %s with score ≥ %d" (cat .Class) .Score}}{{else if eq .Kind "access"}}<a href="/autoban">{{t "auto-ban"}}</a>: {{if eq .Metric "login"}}{{t "%d login attempts within %d min" .Count .WindowMin}}{{else if eq .Metric "404"}}{{t "%d pages not found (404) within %d min" .Count .WindowMin}}{{else}}{{t "%d requests within a minute" .Count}}{{end}}{{end}}{{if gt .Offence 1}} · {{t "ban #%d of this address" .Offence}}{{end}}{{end}}

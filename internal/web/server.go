@@ -34,6 +34,7 @@ import (
 	"wafisp/internal/i18n"
 	"wafisp/internal/notify"
 	"wafisp/internal/policy"
+	"wafisp/internal/share"
 	"wafisp/internal/sites"
 	"wafisp/internal/stats"
 	"wafisp/internal/store"
@@ -61,6 +62,7 @@ type Server struct {
 	Autoban   *autoban.Engine
 	Health    *Health
 	Updater   *update.Updater // nil when the update check is off
+	Share     *share.Syncer   // nil when sharing blocks is not configured
 	// Visitors are the access log summaries; nil when access_logs.disabled.
 	Visitors    *visitors.Store
 	VisitorLogs *visitors.Reader
@@ -166,6 +168,7 @@ func (s *Server) Handler() http.Handler {
 	view("GET /exclusions", s.exclusionsPage)
 	view("GET /autoban", s.autobanPage)
 	view("GET /traps", s.trapsPage)
+	view("GET /share", s.sharePage)
 	view("GET /visitors", s.visitorsPage)
 	view("GET /alerts", s.alerts)
 	view("GET /rules", s.rulesPage)

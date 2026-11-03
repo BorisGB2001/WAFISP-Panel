@@ -26,6 +26,21 @@ The same lines feed the auto-ban's access-log rules (Auto-ban page, "From the ac
 
 On hosts where nginx does not load the panel's rules (step 1, `nginx.reload: []`), the panel adds the default traps once, in dry run with a 7-day ban: `/.env`, `/.git/`, `/.aws/`, `/phpinfo.php`, `/.zshrc`, `/.bashrc`, each matched anywhere in the path. Where adding them would reload nginx, the Traps page offers them with a button instead. A default trap that is deleted is not added again.
 
+## Shared blocks
+
+Panels on several servers can share their blocks through a private GitHub repository. Each panel writes `blocks/<name>.json`: the list of the blocks it made itself (by hand, auto-ban, traps, mass bans), with their terms and reasons, signed with its own ed25519 key. Every `interval` (a minute) it pulls the lists of its peers, checks their signatures against the keys in its config, and puts its blocks in line: new addresses are blocked, extended terms follow, addresses lifted or expired there are unblocked here. Blocks that came from a peer are not published again, so nothing loops. An older copy of a list than the one already applied is refused.
+
+Each server keeps the last word. A peer's address is skipped when it is protected here (private ranges, the host, `block.protected`, Cloudflare), on this server's allow list, or already blocked here by this server. A peer's block unblocked here by hand stays unblocked until that server bans the address anew. A term changed here by hand stands until that server changes its own. Taking a peer out of `peers` lifts its blocks at the next start.
+
+To set it up:
+
+1. Create a private repository, e.g. `wafisp-share`, and a fine-grained token with "Contents: read and write" on that repository only. Put it in `/etc/wafisp/secrets/github-share.token` (mode 0600) on every server. The servers need outbound HTTPS to api.github.com, as for updates.
+2. On every server: `wafisp -genkey /etc/wafisp/secrets/share.key`. It prints the server's public key; the private key never leaves the server.
+3. Add the `share` section to every server's config with its own `name` and the other servers' public keys under `peers` (see `deploy/wafisp.example.yaml`), and restart the panel.
+4. The "Shared blocks" page shows every server: when its list was made, how many blocks it has, how many were applied here, which were skipped and why. With `apply: false` (the default) the peers' blocks are only counted as "would block". Check them, then set `apply: true` and restart.
+
+Peers' blocks go through `share.backends`, `[ipset]` by default. On the Blocked page they show "from server <name>", and the filter "other servers" lists them.
+
 ## Updates from the panel
 
 Every 6 hours the panel asks GitHub for the latest release (`update.repo`, the project's own by default). When there is a newer one, admins see a banner and the "Update" page with the release notes. "Update" does this:

@@ -14,7 +14,7 @@ WAFISP Panel runs as root on a production ISPmanager host, next to the customers
 - **Never add the nginx include (step 2) on your own.** It is a human decision, made after step 1 has run for a while. If the human asks for it, follow [Step 2](docs/DEPLOYMENT.md#step-2-let-nginx-load-the-panels-rules) exactly, and run `nginx -t` before `systemctl reload nginx`. Never `restart` nginx.
 - **Never repair nginx's config because the panel warns that its rules are not loaded.** Report the warning to the human.
 - **Never expose the panel to the internet.** `web.listen` takes internal addresses only (office, VPN), or a public address with `web.allow_from` narrowed to known sources.
-- **Never print, log, commit or paste secrets:** the admin's first password (`/var/lib/wafisp/initial-admin-password`), `/etc/wafisp/secrets/*`, `session.key`, tokens, the release signing key. Tell the human where the file is.
+- **Never print, log, commit or paste secrets:** the admin's first password (`/var/lib/wafisp/initial-admin-password`), `/etc/wafisp/secrets/*` (the shared-blocks key and GitHub token included), `session.key`, tokens, the release signing key. Public keys printed by `wafisp -genkey` are fine to share. Tell the human where the file is.
 - **Never commit production data.** The repository is public: no real IP addresses, domains, host names, user names or configs. Keep production configs in `ops/` (gitignored). Examples use documentation ranges (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`) and `example.*` domains.
 - **Never turn on auto-ban for real or switch traps out of dry run** without the human asking. Both start in dry run on purpose.
 
@@ -26,6 +26,7 @@ Production changes are outward-facing and hard to undo. Ask the human and wait f
 - changing `/etc/wafisp/wafisp.yaml` on a host;
 - reloading nginx;
 - blocking or unblocking addresses, or editing the allow list, on a real host;
+- turning on `share.apply` or adding a server to `share.peers`: its blocks then apply on this host too;
 - `git push`, `make release`, or publishing a GitHub release.
 
 Approval of one step does not cover the next.

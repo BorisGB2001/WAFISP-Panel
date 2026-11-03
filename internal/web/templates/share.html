@@ -1,0 +1,61 @@
+{{define "content"}}
+{{$d := .Data}}
+<section class="card">
+  <p class="muted small">{{t "Servers that trust each other share their blocks: an address banned on one server — by hand, by the auto-ban, by a trap — is blocked on the others within a minute, and unblocked there when it is unblocked here. Each server publishes only its own blocks, signed with its key, to a private GitHub repository. Each server keeps the last word: its protected addresses, Cloudflare and its allow list are never blocked, and a peer's block unblocked here by hand stays unblocked."}}</p>
+  {{if $d.On}}<div class="badges">{{if $d.Cfg.Apply}}<span class="badge good">● {{t "blocking"}}</span>{{else}}<span class="badge warn">◐ {{t "dry run"}}</span> <span class="muted small">{{t "the peers' blocks are only counted; set share.apply: true in the config to block them"}}</span>{{end}}</div>{{end}}
+</section>
+
+{{if not $d.On}}
+<section class="card">
+  <h2>{{t "Off"}}</h2>
+  <p>{{t "Sharing is not configured. To turn it on:"}}</p>
+  <ol class="small">
+    <li>{{t "Create a private GitHub repository and a fine-grained token with read and write access to its contents only."}}</li>
+    <li>{{t "On every server make a key; the command prints the public key:"}} <code>wafisp -genkey /etc/wafisp/secrets/share.key</code></li>
+    <li>{{t "Add the share section to the config of every server, with the public keys of the others (see deploy/wafisp.example.yaml), and restart the panel."}}</li>
+  </ol>
+</section>
+{{else}}
+<section class="card">
+  <h2>{{t "Servers"}}</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "Server"}}</th><th>{{t "List made"}}</th><th>{{t "Blocks in its list"}}</th><th>{{t "Applied here"}}</th><th>{{t "Not applied"}}</th><th>{{t "Checked"}}</th><th>{{t "Status"}}</th></tr></thead>
+    <tbody>
+    {{with $d.Self}}<tr>
+      <td><b>{{$d.Cfg.Name}}</b> <span class="muted">({{t "this server"}})</span></td>
+      <td>{{if .ListAt.IsZero}}—{{else}}{{dt .ListAt}}{{end}}</td>
+      <td>{{$d.Own}}</td><td>—</td><td>—</td>
+      <td>{{if .Checked.IsZero}}—{{else}}{{ago .Checked}}{{end}}</td>
+      <td>{{if .Err}}<span class="badge bad" title="{{.Err}}">{{cut .Err 60}}</span>{{else if .ListAt.IsZero}}<span class="badge">{{t "not published yet"}}</span>{{else}}<span class="badge good">{{t "published"}}</span>{{end}}</td>
+    </tr>{{end}}
+    {{range $d.Peers}}<tr>
+      <td><b>{{.Server}}</b></td>
+      <td>{{if .ListAt.IsZero}}—{{else}}{{dt .ListAt}}{{end}}</td>
+      <td>{{.Items}}</td>
+      <td>{{.Applied}}{{if .Would}} <span class="badge warn" title="{{t "dry run"}}">+{{.Would}} {{t "would block"}}</span>{{end}}</td>
+      <td class="small">{{range $k, $v := .Skipped}}{{tx $k}}: {{$v}}<br>{{end}}</td>
+      <td>{{if .Checked.IsZero}}—{{else}}{{ago .Checked}}{{end}}</td>
+      <td>{{if .Err}}<span class="badge bad" title="{{.Err}}">{{cut .Err 60}}</span>{{else if .ListAt.IsZero}}<span class="badge">{{t "waiting"}}</span>{{else}}<span class="badge good">{{t "in sync"}}</span>{{end}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+  <p class="muted small">{{t "Repository"}}: <span class="mono">{{$d.Cfg.Repo}}</span> · {{t "every"}} {{dur $d.Cfg.Interval.D}} · {{t "peers' blocks via"}} {{join $d.Cfg.Backends ", "}}</p>
+</section>
+
+{{range $peer, $list := $d.Imported}}
+<section class="card">
+  <h2>{{t "Blocked here from %s" $peer}}: {{len $list}}</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "Reason"}}</th><th>{{t "Since"}}</th><th>{{t "Until"}}</th></tr></thead>
+    <tbody>{{range $list}}<tr>
+      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a></td>
+      <td class="small">{{.Reason}}</td>
+      <td class="nowrap">{{dt .At}}</td>
+      <td class="nowrap">{{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{dt .Expires}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  <p class="muted small">{{t "To keep one of them unblocked on this server, unblock it on the Blocked page: the panel will not block it again until that server bans it anew."}}</p>
+</section>
+{{end}}
+{{end}}
+{{end}}

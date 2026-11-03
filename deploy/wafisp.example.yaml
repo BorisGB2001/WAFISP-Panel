@@ -133,3 +133,18 @@ access_logs:
   # glob: /var/www/httpd-logs/*.access.log   # next to the audit logs by default
   # retention: 8760h                         # a year
   # disabled: true
+
+# boris.gb 2026-11-03 16:07 - blocks shared with the panels of other servers through a private GitHub repository.
+# Every panel publishes its own blocks, signed with its key, and applies those of the peers listed here.
+# Protected addresses, Cloudflare and this server's allow list are never blocked. Off when missing.
+# share:
+#   name: web1                                  # this server in the exchange
+#   repo: example/wafisp-share                  # private repository
+#   token_file: secrets/github-share.token      # fine-grained token: contents read/write on that repo only
+#   key_file: secrets/share.key                 # wafisp -genkey secrets/share.key prints the public key
+#   peers:                                      # the other servers and their public keys
+#     web2: "base64 public key of web2"
+#     web3: "base64 public key of web3"
+#   apply: false                                # dry run: only count what it would block; true to block
+#   backends: [ipset]
+#   interval: 1m

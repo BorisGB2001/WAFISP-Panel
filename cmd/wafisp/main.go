@@ -39,6 +39,7 @@ import (
 	"wafisp/internal/pipeline"
 	"wafisp/internal/policy"
 	"wafisp/internal/rules"
+	"wafisp/internal/share"
 	"wafisp/internal/siem"
 	"wafisp/internal/sites"
 	"wafisp/internal/stats"
@@ -59,7 +60,7 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "log alerts instead of sending them; nothing goes to SIEM")
 	resetPassword := flag.String("reset-password", "", "set a random password for the named panel user, print it and exit")
 	showVersion := flag.Bool("version", false, "print the version and exit")
-	genKey := flag.String("genkey", "", "write a new release signing key to this file, print its public key and exit")
+	genKey := flag.String("genkey", "", "write a new signing key to this file (releases, shared blocks), print its public key and exit")
 	signWith := flag.String("sign", "", "sign the files given as arguments with this key file (each gets a .sig) and exit")
 	applyUpdate := flag.String("apply-update", "", "internal: install this staged release, restart the service, roll back if it fails")
 	rollback := flag.Bool("rollback", false, "internal: put the previous binary back and restart the service")
@@ -258,7 +259,11 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 			}}
 		go visitLogs.Run(ctx)
 	}
-	ws := &web.Server{Cfg: cfg, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
+	syncer, err := newSyncer(cfg, blocks, pol, log)
+	if err != nil {
+		return err
+	}
+	ws := &web.Server{Cfg: cfg, Share: syncer, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
 		Autoban: ban, Health: health, Updater: upd, Visitors: visits, VisitorLogs: visitLogs,
 		Senders: senders, Stats: st, History: hist, Rules: p, Log: log, Version: version, RuleFile: ruleFile}
 	if err := ws.Open(activeRules); err != nil {
@@ -306,6 +311,10 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 		})
 		go maintain(ctx, events, pol, ws, log)
 		go runAutoban(ctx, ban, blocks, pol, banEvents, banRequests, ws, notice, log)
+		if syncer != nil {
+			syncer.Audit = func(action, detail string) { ws.Audit().Log("system", "", action, detail) }
+			go syncer.Run(ctx, cfg.Share.Interval.D())
+		}
 		if cfg.Nginx.IncludeFile != "none" {
 			go checkHealth(ctx, cfg, pol, health, notice, log)
 		}
@@ -370,6 +379,37 @@ func maintain(ctx context.Context, events *store.Store, pol *policy.Manager, ws 
 			events.Maintain(now)
 		}
 	}
+}
+
+// newSyncer prepares the exchange of blocks with other servers; nil when
+// it is not configured.
+func newSyncer(cfg *config.Config, blocks *block.Manager, pol *policy.Manager, log *slog.Logger) (*share.Syncer, error) {
+	sh := cfg.Share
+	if sh == nil {
+		return nil, nil
+	}
+	priv, err := update.ParsePrivateKey(sh.Key)
+	if err != nil {
+		return nil, fmt.Errorf("share: key_file: %w", err)
+	}
+	peers := map[string]ed25519.PublicKey{}
+	for name, key := range sh.Peers {
+		if peers[name], err = update.ParsePublicKey(key); err != nil {
+			return nil, fmt.Errorf("share: peer %s: %w", name, err)
+		}
+		if peers[name].Equal(priv.Public()) {
+			return nil, fmt.Errorf("share: peer %s has this server's own key", name)
+		}
+	}
+	for _, b := range sh.Backends {
+		if blocks.Backend(b) == nil {
+			return nil, fmt.Errorf("share: backend %q is not in block.backends", b)
+		}
+	}
+	return &share.Syncer{Name: sh.Name, Key: priv, Peers: peers, Blocks: blocks, Backends: sh.Backends, Apply: sh.Apply,
+		Store:     &share.GitHub{API: sh.API, Repo: sh.Repo, Branch: sh.Branch, Token: sh.Token, HTTP: &http.Client{Timeout: 30 * time.Second}},
+		Allowed:   func(ip string) bool { return allowed(pol, ip) },
+		StateFile: filepath.Join(cfg.DataDir, "share.json"), Log: log}, nil
 }
 
 // accessLine is one access log line of a site, for the auto-ban.

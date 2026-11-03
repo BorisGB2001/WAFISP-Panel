@@ -2,11 +2,13 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -48,6 +50,40 @@ type Config struct {
 	SystemChannels []string   `yaml:"system_channels"`
 	Update         Update     `yaml:"update"`
 	AccessLogs     AccessLogs `yaml:"access_logs"`
+	// Share exchanges blocks with the panels of other servers; nil is off.
+	Share *Share `yaml:"share"`
+}
+
+// Share exchanges blocks with the panels of other servers through a
+// private GitHub repository: every panel publishes its own blocks, signed
+// with its key, and applies those of the peers it trusts.
+type Share struct {
+	// Name of this server in the exchange: lowercase letters, digits, - and _.
+	Name string `yaml:"name"`
+	// Repo is the private repository, owner/name; Branch is its default
+	// branch when empty.
+	Repo   string `yaml:"repo"`
+	Branch string `yaml:"branch"`
+	// API is GitHub's API, https://api.github.com by default (GitHub
+	// Enterprise has its own).
+	API string `yaml:"api"`
+	// TokenFile holds a GitHub token that can read and write the contents
+	// of Repo only.
+	TokenFile string `yaml:"token_file"`
+	// KeyFile is this server's private key, made by wafisp -genkey.
+	KeyFile string `yaml:"key_file"`
+	// Peers are the trusted servers: name -> public key.
+	Peers map[string]string `yaml:"peers"`
+	// Apply blocks the peers' addresses; until then the panel only shows
+	// what it would block.
+	Apply bool `yaml:"apply"`
+	// Backends block the peers' addresses, [ipset] by default.
+	Backends []string `yaml:"backends"`
+	// Interval between exchanges, 1m by default.
+	Interval Duration `yaml:"interval"`
+
+	Token string `yaml:"-"`
+	Key   string `yaml:"-"`
 }
 
 // AccessLogs are the sites' nginx access logs, read for the Visitors page:
@@ -329,6 +365,11 @@ func (c *Config) finish(dir string) error {
 	if c.Update.Interval == 0 {
 		c.Update.Interval = Duration(6 * time.Hour)
 	}
+	if sh := c.Share; sh != nil {
+		if err := sh.finish(secret); err != nil {
+			return fmt.Errorf("share: %w", err)
+		}
+	}
 	if c.Retention == 0 {
 		c.Retention = Duration(30 * 24 * time.Hour)
 	}
@@ -590,4 +631,49 @@ func ParsePrefix(s string) (netip.Prefix, error) {
 	}
 	p, err := netip.ParsePrefix(s)
 	return p.Masked(), err
+}
+
+var shareName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
+
+func (sh *Share) finish(secret func(p, what string) (string, error)) error {
+	if !shareName.MatchString(sh.Name) {
+		return fmt.Errorf("name %q: lowercase letters, digits, - and _, up to 32", sh.Name)
+	}
+	if o, n, ok := strings.Cut(sh.Repo, "/"); !ok || o == "" || n == "" || strings.Contains(n, "/") {
+		return fmt.Errorf("repo must be owner/name")
+	}
+	var err error
+	if sh.Token, err = secret(sh.TokenFile, "token_file"); err != nil {
+		return err
+	}
+	if sh.Token == "" {
+		return fmt.Errorf("token_file is required")
+	}
+	if sh.Key, err = secret(sh.KeyFile, "key_file"); err != nil {
+		return err
+	}
+	if sh.Key == "" {
+		return fmt.Errorf("key_file is required (make one with wafisp -genkey <file>)")
+	}
+	if len(sh.Peers) == 0 {
+		return fmt.Errorf("list at least one peer")
+	}
+	for name, key := range sh.Peers {
+		if !shareName.MatchString(name) || name == sh.Name {
+			return fmt.Errorf("peer %q: a name like name, other than this server's", name)
+		}
+		if b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key)); err != nil || len(b) != 32 {
+			return fmt.Errorf("peer %s: the public key is not a base64 ed25519 key", name)
+		}
+	}
+	if len(sh.Backends) == 0 {
+		sh.Backends = []string{"ipset"}
+	}
+	if sh.Interval == 0 {
+		sh.Interval = Duration(time.Minute)
+	}
+	if sh.Interval.D() < 15*time.Second {
+		return fmt.Errorf("interval must be at least 15s")
+	}
+	return nil
 }

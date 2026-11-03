@@ -34,7 +34,7 @@ func (s *Server) blockedPage(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 		if q != "" && !strings.Contains(e.IP, q) && !strings.Contains(strings.ToLower(e.Reason), strings.ToLower(q)) && !strings.Contains(e.Site, q) {
 			continue
 		}
-		if (by == "autoban" && e.By != "autoban") || (by == "people" && e.By == "autoban") {
+		if (by == "autoban" && e.By != "autoban") || (by == "people" && (e.By == "autoban" || e.Peer != "")) || (by == "share" && e.Peer == "") {
 			continue
 		}
 		idx[e.IP] = len(rows)
