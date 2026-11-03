@@ -3,7 +3,8 @@
 <section class="card">
   <p class="muted small">{{t "The auto-ban blocks an address that keeps attacking: too many denied requests within a window, or one denied request of a dangerous class. Every new offence of the same address blocks it for longer. The protected list and the allow list are never banned. In dry-run mode it only records whom it would block — start there and check the list below."}}</p>
   <div class="badges">
-    {{if not $s.Enabled}}<span class="badge">{{t "off"}}</span>{{else if $s.DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "blocking"}}</span>{{end}}
+    {{t "by the WAF"}}: {{if not $s.Enabled}}<span class="badge">{{t "off"}}</span>{{else if $s.DryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "blocking"}}</span>{{end}}
+    {{t "by the access logs"}}: {{if not $s.AccessEnabled}}<span class="badge">{{t "off"}}</span>{{else if $s.AccessDryRun}}<span class="badge warn">◐ {{t "dry run"}}</span>{{else}}<span class="badge good">● {{t "blocking"}}</span>{{end}}
   </div>
 </section>
 
@@ -20,6 +21,20 @@
   <fieldset class="modes"><legend>{{t "Ban at once on one denied request of these classes"}}</legend>
     {{range $d.Cats}}<label class="radio"><input type="checkbox" name="instant" value="{{.Code}}" {{if has $s.Instant .Code}}checked{{end}}> {{tx .Name}}</label> {{end}}
     <label>{{t "with an anomaly score of at least"}}<input type="number" name="instant_score" min="0" value="{{$s.InstantScore}}" style="width:6em"></label>
+  </fieldset>
+  <fieldset class="modes"><legend>{{t "From the access logs"}}</legend>
+    <p class="muted small">{{t "Catches what the WAF does not see, from the sites' nginx access logs: scanners probing for files, password guessing on login pages, floods. Search engine bots are never counted. Set a limit to 0 to turn that rule off."}}</p>
+    {{if not $d.AccessLogs}}<p class="flash err">{{t "Reading the access logs is off in the config (access_logs.disabled), so these rules see nothing."}}</p>{{end}}
+    <label class="radio"><input type="checkbox" name="access_enabled" {{if $s.AccessEnabled}}checked{{end}}> <b>{{t "On"}}</b></label>
+    <label class="radio"><input type="checkbox" name="access_dry_run" {{if $s.AccessDryRun}}checked{{end}}> <b>{{t "Dry run"}}</b> — {{t "only record whom it would block"}}</label>
+    <div class="grid2">
+      <label>{{t "Pages not found (404) from one address"}}<input type="number" name="not_found" min="0" value="{{$s.NotFound}}"></label>
+      <label>{{t "Login attempts (POST to a login page)"}}<input type="number" name="logins" min="0" value="{{$s.Logins}}"></label>
+      <label>{{t "within, minutes"}}<input type="number" name="access_window" min="1" max="1440" value="{{$d.AccessMin}}"></label>
+      <label>{{t "Requests a minute from one address"}}<input type="number" name="rate" min="0" value="{{$s.Rate}}"></label>
+    </div>
+    <p class="muted small">{{t "404s count only for pages: missing images, styles and scripts on a broken page do not ban a visitor."}}</p>
+    <label>{{t "Login pages, one per line; a path matches when it starts with one of them"}}<textarea name="login_paths" rows="4" class="mono">{{$d.LoginPaths}}</textarea></label>
   </fieldset>
   <fieldset class="modes"><legend>{{t "Block duration by offence"}}</legend>
     <div class="grid3">

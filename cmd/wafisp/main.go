@@ -188,6 +188,7 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 	}
 	ban.Traps = func() []policy.Trap { st := pol.State(); return st.Traps }
 	banEvents := make(chan event.Event, 1000)
+	banRequests := make(chan accessLine, 5000)
 	notice := func(severity, text string) {
 		a := rules.Alert{ID: fmt.Sprint(time.Now().UnixNano()), Rule: "system", Severity: severity, Note: text,
 			Channels: cfg.SystemChannels, First: time.Now(), Last: time.Now()}
@@ -247,7 +248,14 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 			return fmt.Errorf("visitors: %w", err)
 		}
 		visitLogs = &visitors.Reader{Glob: cfg.AccessLogs.Glob, Suffix: cfg.AccessLogs.Suffix, Store: visits,
-			StateFile: filepath.Join(cfg.DataDir, "visitors", "cursors.json"), Every: 10 * time.Second, Log: log}
+			StateFile: filepath.Join(cfg.DataDir, "visitors", "cursors.json"), Every: 10 * time.Second, Log: log,
+			// The auto-ban's access-log rules; a full queue drops lines rather than stall the reader.
+			OnRequest: func(site string, r visitors.Request) {
+				select {
+				case banRequests <- accessLine{site, r}:
+				default:
+				}
+			}}
 		go visitLogs.Run(ctx)
 	}
 	ws := &web.Server{Cfg: cfg, Store: events, Collector: col, Sites: siteReader, Policy: pol, Blocks: blocks,
@@ -297,7 +305,7 @@ func run(cfgPath string, check bool, testChannel string, dryRun bool, log *slog.
 			ws.Audit().Log("system", "", "unblock.expired", detail)
 		})
 		go maintain(ctx, events, pol, ws, log)
-		go runAutoban(ctx, ban, blocks, pol, banEvents, ws, notice, log)
+		go runAutoban(ctx, ban, blocks, pol, banEvents, banRequests, ws, notice, log)
 		if cfg.Nginx.IncludeFile != "none" {
 			go checkHealth(ctx, cfg, pol, health, notice, log)
 		}
@@ -364,18 +372,27 @@ func maintain(ctx context.Context, events *store.Store, pol *policy.Manager, ws 
 	}
 }
 
-// runAutoban applies the auto-ban's decisions: it blocks through the
-// configured backends, or only records them in dry-run mode.
+// accessLine is one access log line of a site, for the auto-ban.
+type accessLine struct {
+	site string
+	r    visitors.Request
+}
+
+// runAutoban applies the auto-ban's decisions on WAF events and access log
+// lines: it blocks through the configured backends, or only records them
+// in dry-run mode.
 func runAutoban(ctx context.Context, ban *autoban.Engine, blocks *block.Manager, pol *policy.Manager,
-	in <-chan event.Event, ws *web.Server, notice func(string, string), log *slog.Logger) {
+	in <-chan event.Event, lines <-chan accessLine, ws *web.Server, notice func(string, string), log *slog.Logger) {
 	for {
-		var ev event.Event
+		var d *autoban.Decision
 		select {
 		case <-ctx.Done():
 			return
-		case ev = <-in:
+		case ev := <-in:
+			d = ban.Process(ev)
+		case l := <-lines:
+			d = ban.Access(l.site, l.r)
 		}
-		d := ban.Process(ev)
 		if d == nil {
 			continue
 		}

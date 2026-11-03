@@ -459,4 +459,20 @@ var ruWAFISP = map[string]string{
 	"starts with":                                                        "начинается с",
 	"contains":                                                           "содержит",
 	"the part of the path must be 3 to 255 characters, more than slashes and dots, with no spaces or quotes": "часть пути — от 3 до 255 символов, не только слэши и точки, без пробелов и кавычек",
+
+	// Auto-ban from the access logs.
+	"by the WAF":           "по WAF",
+	"by the access logs":   "по access-логам",
+	"From the access logs": "По access-логам",
+	"Catches what the WAF does not see, from the sites' nginx access logs: scanners probing for files, password guessing on login pages, floods. Search engine bots are never counted. Set a limit to 0 to turn that rule off.": "Ловит то, чего не видит WAF, по access-логам nginx: сканеры, перебирающие файлы, подбор паролей на страницах входа, поток запросов. Боты поисковиков не учитываются никогда. Лимит 0 выключает правило.",
+	"Reading the access logs is off in the config (access_logs.disabled), so these rules see nothing.":                                                                                                                          "Чтение access-логов выключено в конфиге (access_logs.disabled), эти правила ничего не видят.",
+	"On":                                     "Включено",
+	"Pages not found (404) from one address": "Страниц не найдено (404) с одного адреса",
+	"Login attempts (POST to a login page)":  "Попыток входа (POST на страницу входа)",
+	"Requests a minute from one address":     "Запросов в минуту с одного адреса",
+	"404s count only for pages: missing images, styles and scripts on a broken page do not ban a visitor.": "404 считаются только для страниц: отсутствующие картинки, стили и скрипты на сломанной странице не забанят посетителя.",
+	"Login pages, one per line; a path matches when it starts with one of them":                            "Страницы входа, по одной в строке; путь подходит, если начинается с одной из них",
+	"%d login attempts within %d min":        "%d попыток входа за %d мин",
+	"%d pages not found (404) within %d min": "%d страниц не найдено (404) за %d мин",
+	"%d requests within a minute":            "%d запросов за минуту",
 }

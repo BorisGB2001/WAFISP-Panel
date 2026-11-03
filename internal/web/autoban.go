@@ -32,7 +32,8 @@ func (s *Server) autobanPage(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 		keys = append(keys, "")
 	}
 	s.render(w, r, rc, "autoban.html", page{Title: "Auto-ban", Active: "autoban", Data: map[string]any{
-		"S": st, "WindowMin": int(st.Window / time.Minute), "DurKeys": keys, "Durations": banDurations,
+		"S": st, "WindowMin": int(st.Window / time.Minute), "AccessMin": int(st.AccessWindow / time.Minute),
+		"LoginPaths": strings.Join(st.LoginPaths, "\n"), "AccessLogs": !s.Cfg.AccessLogs.Disabled, "DurKeys": keys, "Durations": banDurations,
 		"Cats": categoryOptions(), "Backends": s.Blocks.Names(), "Decisions": s.Autoban.Decisions(),
 	}})
 }
@@ -47,6 +48,16 @@ func (s *Server) autobanSave(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 	st.Instant = r.Form["instant"]
 	st.InstantScore, _ = strconv.Atoi(r.FormValue("instant_score"))
 	st.Backends = r.Form["backend"]
+	if _, ok := r.Form["access_window"]; ok { // a form from before the access-log rules keeps them as they are
+		st.AccessEnabled = r.FormValue("access_enabled") == "on"
+		st.AccessDryRun = r.FormValue("access_dry_run") == "on"
+		mins, _ = strconv.Atoi(r.FormValue("access_window"))
+		st.AccessWindow = time.Duration(mins) * time.Minute
+		st.NotFound, _ = strconv.Atoi(r.FormValue("not_found"))
+		st.Logins, _ = strconv.Atoi(r.FormValue("logins"))
+		st.Rate, _ = strconv.Atoi(r.FormValue("rate"))
+		st.LoginPaths = strings.Fields(r.FormValue("login_paths"))
+	}
 	st.Durations = nil
 	for _, k := range r.Form["duration"] {
 		if k == "" {
@@ -77,7 +88,8 @@ func (s *Server) autobanSave(w http.ResponseWriter, r *http.Request, rc *reqCtx)
 	for _, d := range st.Durations {
 		durs = append(durs, durationKey(d))
 	}
-	s.audit.Log(rc.User.Name, clientIP(r), "autoban.settings", fmt.Sprintf("enabled=%v dry_run=%v %d in %s, instant=%s score≥%d, durations=%s via %s",
-		st.Enabled, st.DryRun, st.Threshold, st.Window, strings.Join(st.Instant, ","), st.InstantScore, strings.Join(durs, "→"), strings.Join(st.Backends, "+")))
+	s.audit.Log(rc.User.Name, clientIP(r), "autoban.settings", fmt.Sprintf("enabled=%v dry_run=%v %d in %s, instant=%s score≥%d, durations=%s via %s; access logs: enabled=%v dry_run=%v in %s 404=%d logins=%d rate=%d/min",
+		st.Enabled, st.DryRun, st.Threshold, st.Window, strings.Join(st.Instant, ","), st.InstantScore, strings.Join(durs, "→"), strings.Join(st.Backends, "+"),
+		st.AccessEnabled, st.AccessDryRun, st.AccessWindow, st.NotFound, st.Logins, st.Rate))
 	flashRedirect(w, r, "/autoban", tr(r, "Auto-ban settings saved"), "")
 }

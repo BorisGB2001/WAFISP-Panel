@@ -41,6 +41,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 - **Ban by attack**: from an event, block every address that triggered the same rule, class or path in the chosen period. You see the list first and confirm it. The panel warns you when the list looks like ordinary visitors rather than attackers.
 - **Traps**: click a path in the top paths to see its events, ban everyone who requested it, or set a trap that bans whoever requests it from now on, for a set time or for good. A trap matches the start of the path or any part of it: one `.env` trap covers every site. Default traps for `/.env`, `/.git/`, `/.aws/`, `/phpinfo.php`, `/.zshrc` and `/.bashrc` come in dry run. The top lists can hide blocked addresses and trapped paths; the choice is remembered in the browser. Where nginx loads the panel's rules, every request to a trap path gets 403 and lands in the audit log, so even a plain visit is caught.
 - **Auto-ban** of addresses that keep attacking. It triggers on N denied requests within a window, or on one denied request of a dangerous class (RCE, web shell, Java by default). A repeat offender is blocked for longer each time: a day, then a week, then for good. Auto-ban starts off and in dry-run mode, where it only records whom it would block.
+- **Auto-ban from the access logs** catches what the WAF never sees: an address that hits many missing pages (404), keeps posting to login pages (`/wp-login.php`, `/xmlrpc.php`, `/bitrix/admin/` and others) or sends a flood of requests. Missing images and styles do not count, and search engine bots are never banned. It is switched on and tried in dry run apart from the WAF rules.
 - **Protected addresses**: private networks, the panel's own addresses, your own address, Cloudflare's networks and a configured list can never be blocked. For a site behind Cloudflare the WAF sees Cloudflare's servers, not the visitors, so banning one would cut off everyone coming through it; such addresses are marked "☁ Cloudflare".
 - **Sites**: every site with its WAF mode and what it means — blocking, logging only, or no WAF at all — with the unprotected ones highlighted and listed first, and their traffic.
 
@@ -125,4 +126,4 @@ Both steps are described in [Deployment](docs/DEPLOYMENT.md), along with how to 
 
 ## Status
 
-Version 0.5.1. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.
+Version 0.5.2. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.

@@ -63,12 +63,15 @@ var assetExt = map[string]bool{".css": true, ".js": true, ".mjs": true, ".map": 
 	".gif": true, ".svg": true, ".webp": true, ".avif": true, ".ico": true, ".woff": true, ".woff2": true, ".ttf": true, ".eot": true,
 	".otf": true, ".mp4": true, ".webm": true, ".mp3": true, ".json": true, ".xml": true, ".txt": true}
 
+// IsAsset tells an image, style, script, font or media file by its path.
+func IsAsset(p string) bool { return assetExt[strings.ToLower(path.Ext(p))] }
+
 // isPage tells a page from an asset or an API call.
 func isPage(r Request) bool {
 	if r.Method != "GET" || r.Path == "" || r.Status >= 300 && r.Status != 304 {
 		return false
 	}
-	return !assetExt[strings.ToLower(path.Ext(r.Path))]
+	return !IsAsset(r.Path)
 }
 
 // count adds one request to a.
@@ -129,6 +132,9 @@ type Reader struct {
 	Store     *Store
 	Every     time.Duration
 	Log       *slog.Logger
+	// OnRequest, when set, sees every line read, for the auto-ban; it must
+	// not block.
+	OnRequest func(site string, r Request)
 
 	mu      sync.Mutex
 	cursors map[string]cursor
@@ -253,6 +259,9 @@ func (r *Reader) readFile(p, site string) bool {
 		cur.Off += int64(len(line))
 		if req, ok := ParseLine(line); ok {
 			r.Store.Add(site, req)
+			if r.OnRequest != nil {
+				r.OnRequest(site, req)
+			}
 			n++
 			if req.Time.After(st.LastSeen) {
 				st.LastSeen = req.Time

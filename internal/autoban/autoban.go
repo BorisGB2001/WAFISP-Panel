@@ -1,5 +1,7 @@
 // Package autoban blocks addresses that keep attacking: too many denied
-// requests within a window, or one request of a dangerous class. Every
+// requests within a window, or one request of a dangerous class; and, from
+// the access logs, too many pages not found, login attempts or requests
+// (see access.go). Every
 // new offence of the same address blocks it for longer (a day, a week,
 // then for good). In dry-run mode it only records whom it would block.
 // Traps ban whoever requests a path, whether the auto-ban is on or not.
@@ -37,6 +39,16 @@ type Settings struct {
 	// Memory is how long past offences count for escalation.
 	Memory   time.Duration `json:"memory"`
 	Backends []string      `json:"backends"`
+
+	// Access-log rules, on and in dry run apart from the WAF rules. A
+	// limit of 0 turns that rule off.
+	AccessEnabled bool          `json:"access_enabled"`
+	AccessDryRun  bool          `json:"access_dry_run"`
+	AccessWindow  time.Duration `json:"access_window"`
+	NotFound      int           `json:"not_found"` // 404s on pages (not images, styles, scripts) within AccessWindow
+	Logins        int           `json:"logins"`    // POSTs to LoginPaths within AccessWindow
+	Rate          int           `json:"rate"`      // requests within one minute
+	LoginPaths    []string      `json:"login_paths"`
 }
 
 func Defaults() Settings {
@@ -45,6 +57,8 @@ func Defaults() Settings {
 		Instant: []string{"rce", "webshell", "java"}, InstantScore: 10,
 		Durations: []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 0},
 		Memory:    90 * 24 * time.Hour, Backends: []string{"ipset"},
+		AccessDryRun: true, AccessWindow: 5 * time.Minute, NotFound: 30, Logins: 10, Rate: 600,
+		LoginPaths: slices.Clone(DefaultLoginPaths),
 	}
 }
 
@@ -82,7 +96,7 @@ func (s *Settings) Validate(backends []string) error {
 	if s.Memory < 24*time.Hour {
 		s.Memory = 90 * 24 * time.Hour
 	}
-	return nil
+	return validateAccess(s)
 }
 
 // Decision is one address the engine blocked or would block.
@@ -126,10 +140,15 @@ type Engine struct {
 	// trapSeen is when an address last fell into a trap ("id ip"): one
 	// decision per address and trap an hour.
 	trapSeen map[string]time.Time
+	// access is what each address did lately by the access logs;
+	// accessSeen is when it last got an access-log decision.
+	access     map[string]*accessWin
+	accessSeen map[string]time.Time
 }
 
 func Open(file string) (*Engine, error) {
-	e := &Engine{File: file, recent: map[string][]event.Event{}, trapSeen: map[string]time.Time{}}
+	e := &Engine{File: file, recent: map[string][]event.Event{}, trapSeen: map[string]time.Time{},
+		access: map[string]*accessWin{}, accessSeen: map[string]time.Time{}}
 	e.st = state{Settings: Defaults(), Offences: map[string][]time.Time{}}
 	b, err := os.ReadFile(file)
 	if err == nil {
@@ -168,6 +187,8 @@ func (e *Engine) SetSettings(s Settings) error {
 	defer e.mu.Unlock()
 	e.st.Settings = s
 	clear(e.recent)
+	clear(e.access)
+	clear(e.accessSeen)
 	return e.save()
 }
 

@@ -15,7 +15,8 @@
 # boris.gb 2026-11-03 00:41 - 0.4.0: updates from GitHub (signed releases, one click, automatic rollback), release signing key
 # boris.gb 2026-11-03 01:16 - 0.5.0: Visitors page from the access logs, client type in the attack log, default traps
 # boris.gb 2026-11-03 01:36 - 0.5.1: Cloudflare addresses never blocked (old blocks lifted), sites without WAF highlighted, update page waits and reloads, notes in the panel's language
-VERSION ?= 0.5.1
+# boris.gb 2026-11-03 15:57 - 0.5.2: auto-ban from the access logs (404s on pages, login attempts, request rate), "Event" title in Russian
+VERSION ?= 0.5.2
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release

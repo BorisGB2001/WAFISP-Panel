@@ -59,7 +59,7 @@ type Entry struct {
 // Rule describes the automatic rule behind a block, so the panel can say
 // which one fired.
 type Rule struct {
-	Kind string `json:"kind"` // trap | threshold | instant
+	Kind string `json:"kind"` // trap | threshold | instant | access
 	// trap: its id, site (empty: every site) and path prefix, or a part of
 	// the path with Match "contains"
 	Trap  int    `json:"trap,omitempty"`
@@ -72,6 +72,9 @@ type Rule struct {
 	// instant: one denied request of Class with at least Score
 	Class string `json:"class,omitempty"`
 	Score int    `json:"score,omitempty"`
+	// access: Count 404s ("404"), login attempts ("login") or requests
+	// ("rate") in the access logs within WindowMin minutes
+	Metric string `json:"metric,omitempty"`
 	// Offence is the address's ban number within the auto-ban's memory.
 	Offence int `json:"offence,omitempty"`
 }
