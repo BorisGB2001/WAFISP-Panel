@@ -7,7 +7,7 @@ import (
 
 func TestCountryFunc(t *testing.T) {
 	cc := countryFunc(nil, "ru") // no geo database
-	if got := string(cc("10.6.0.100")); !strings.Contains(got, ">LAN<") || !strings.Contains(got, "Частная сеть") {
+	if got := string(cc("192.168.1.10")); !strings.Contains(got, ">LAN<") || !strings.Contains(got, "Частная сеть") {
 		t.Errorf("private address: %q", got)
 	}
 	if got := string(cc("192.168.0.0/16")); !strings.Contains(got, ">LAN<") {
