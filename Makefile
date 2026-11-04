@@ -20,7 +20,8 @@
 # boris.gb 2026-11-03 16:31 - 0.6.1: shared blocks over git+SSH with a per-server deploy key (no token on the servers), GitHub host key pinned
 # boris.gb 2026-11-03 21:46 - 0.6.2: Visitors page shows sites with the request log off and turns it on/off in ISPmanager (mgrctl webdomain.edit)
 # boris.gb 2026-11-04 12:49 - 0.6.3: step 2 without moving CRS: the include may load only the panel rules at the http level while the sites load CRS
-VERSION ?= 0.6.3
+# boris.gb 2026-11-04 14:54 - 0.6.4: resizable table columns remembered in the browser, country code after every address
+VERSION ?= 0.6.4
 LDFLAGS = -s -w -X main.version=$(VERSION)
 
 .PHONY: build linux test release

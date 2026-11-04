@@ -48,7 +48,7 @@
   <div class="scroll"><table>
     <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "Reason"}}</th><th>{{t "Since"}}</th><th>{{t "Until"}}</th></tr></thead>
     <tbody>{{range $list}}<tr>
-      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a></td>
+      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a>{{cc .IP}}</td>
       <td class="small">{{.Reason}}</td>
       <td class="nowrap">{{dt .At}}</td>
       <td class="nowrap">{{if .Expires.IsZero}}<b>{{t "for good"}}</b>{{else}}{{dt .Expires}}{{end}}</td>

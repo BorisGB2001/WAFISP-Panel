@@ -30,6 +30,7 @@ import (
 	"wafisp/internal/block"
 	"wafisp/internal/collector"
 	"wafisp/internal/config"
+	"wafisp/internal/geo"
 	"wafisp/internal/history"
 	"wafisp/internal/i18n"
 	"wafisp/internal/notify"
@@ -66,6 +67,8 @@ type Server struct {
 	Health    *Health
 	Updater   *update.Updater // nil when the update check is off
 	Share     *share.Syncer   // nil when sharing blocks is not configured
+	// Geo places addresses for the country codes in tables; nil shows none.
+	Geo *geo.Geo
 	// Visitors are the access log summaries; nil when access_logs.disabled.
 	Visitors    *visitors.Store
 	VisitorLogs *visitors.Reader
@@ -134,7 +137,7 @@ func (s *Server) parseTemplates() error {
 			if name == "layout.html" {
 				continue
 			}
-			t, err := template.New(name).Funcs(funcs).Funcs(langFuncs(lang)).ParseFS(assets, "templates/layout.html", f)
+			t, err := template.New(name).Funcs(funcs).Funcs(langFuncs(lang)).Funcs(template.FuncMap{"cc": countryFunc(s.Geo, lang)}).ParseFS(assets, "templates/layout.html", f)
 			if err != nil {
 				return fmt.Errorf("template %s: %w", name, err)
 			}

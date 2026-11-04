@@ -26,7 +26,7 @@
     <tbody>
     {{range $d.Rows}}<tr class="{{if .Skip}}off{{else if .Visitor}}warnrow{{end}}">
       <td>{{if not .Skip}}<input type="checkbox" name="ip" value="{{.IP}}" {{if .Selected}}checked{{end}} aria-label="{{.IP}}">{{end}}</td>
-      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a> <small class="muted">{{.Country}}</small></td>
+      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a>{{cc .IP}}</td>
       <td>{{.Events}}</td><td>{{.Denied}}</td>
       <td>{{if .Visitor}}<span class="badge warn" title="{{t "may be a real visitor"}}">{{.Paths}}</span>{{else}}{{.Paths}}+{{end}}</td>
       <td class="small">{{join .Sites ", "}}</td>

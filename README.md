@@ -29,6 +29,7 @@ The screenshots show made-up demo data: documentation addresses and `example.*` 
 - **Address search** from the menu. It shows everything known about one address: its events, sites, classes and whether it is blocked or allowed.
 - **Visitors**: all traffic from the nginx access logs, not only attacks: requests and page views over time, devices (desktop, phone, tablet), operating systems and browsers, bots and scripts, response codes, top pages and 404s, and where visitors come from (search engines such as Google, Yandex, Bing/MSN and Mail.ru, social networks, other sites, direct). Only hourly counts are kept, for a year, so ISPmanager can rotate and delete the logs. Sites whose request log is off in ISPmanager are listed there, and an admin can turn it on for one site or all of them with a click (through `mgrctl`, ISPmanager rewrites the config itself).
 - **Analysis**: possible false positives (the same rule on the same site, path and variable hit by many ordinary visitors rather than scanners), plus top attackers, rules, paths and countries.
+- **Tables**: drag the right edge of a column header to make it wider or narrower; the widths are remembered in the browser for each table, and a double click on the edge resets them. Every address in a table is followed by its country code (`US`, `RU`, `DE`, `LAN` for private networks) from the GeoIP database (`geoip_db`); hover it for the country name.
 
 **Block and unblock**
 
@@ -127,4 +128,4 @@ Both steps are described in [Deployment](docs/DEPLOYMENT.md), along with how to 
 
 ## Status
 
-Version 0.6.3. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.
+Version 0.6.4. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.

@@ -10,7 +10,7 @@
     <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "How"}}</th><th>{{t "Reason"}}</th><th>{{t "By"}}</th><th>{{t "When"}}</th><th>{{t "Until"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
     <tbody>
     {{range $d.Entries}}<tr>
-      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a>{{if .Site}}<br><small class="muted">{{.Site}}</small>{{end}}</td>
+      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a>{{cc .IP}}{{if .Site}}<br><small class="muted">{{.Site}}</small>{{end}}</td>
       <td>{{range .Backends}}<span class="badge">{{.}}</span> {{end}}</td>
       <td>{{.Reason}}</td><td>{{template "blockhow" .}}</td><td class="nowrap">{{dt .At}}</td>
       <td class="nowrap">{{if .Expires.IsZero}}{{t "until unblocked"}}{{else}}{{dt .Expires}}{{end}}</td>
@@ -41,7 +41,7 @@
   <table>
     <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "Reason"}}</th><th>{{t "By"}}</th><th>{{t "Until"}}</th>{{if .IsAdmin}}<th></th>{{end}}</tr></thead>
     <tbody>{{range $d.Allow}}<tr>
-      <td class="mono"><a href="/ip/{{.IP}}" class="allowed">{{.IP}}</a></td><td>{{.Reason}}</td><td>{{.By}}<br><small class="muted">{{dt .At}}</small></td>
+      <td class="mono"><a href="/ip/{{.IP}}" class="allowed">{{.IP}}</a>{{cc .IP}}</td><td>{{.Reason}}</td><td>{{.By}}<br><small class="muted">{{dt .At}}</small></td>
       <td>{{if .Expires.IsZero}}{{t "until removed"}}{{else}}{{dt .Expires}}{{end}}</td>
       {{if $.IsAdmin}}<td><form method="post" action="/allow/remove" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="ip" value="{{.IP}}"><button class="btn">{{t "Remove"}}</button></form></td>{{end}}
     </tr>{{end}}</tbody>

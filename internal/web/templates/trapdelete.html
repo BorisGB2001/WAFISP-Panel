@@ -8,7 +8,7 @@
   <p>{{t "The trap banned %d addresses that are still blocked:" (len $d.Banned)}}</p>
   <div class="scroll"><table>
     <thead><tr><th>IP</th><th>{{t "When"}}</th><th>{{t "Until"}}</th></tr></thead>
-    <tbody>{{range $d.Banned}}<tr><td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a></td><td class="nowrap">{{dt .At}}</td><td class="nowrap">{{if .Expires.IsZero}}{{t "for good"}}{{else}}{{dt .Expires}}{{end}}</td></tr>{{end}}</tbody>
+    <tbody>{{range $d.Banned}}<tr><td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a>{{cc .IP}}</td><td class="nowrap">{{dt .At}}</td><td class="nowrap">{{if .Expires.IsZero}}{{t "for good"}}{{else}}{{dt .Expires}}{{end}}</td></tr>{{end}}</tbody>
   </table></div>
   <label class="radio"><input type="radio" name="unban" value="yes" checked> <b>{{t "Unblock them"}}</b> — {{t "the trap was a mistake or is no longer needed"}}</label>
   <label class="radio"><input type="radio" name="unban" value="no"> <b>{{t "Keep them blocked"}}</b> — {{t "their bans run out as set"}}</label>

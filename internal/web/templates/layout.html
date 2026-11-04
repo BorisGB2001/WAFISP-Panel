@@ -72,7 +72,7 @@
 {{end}}
 
 {{define "iplist"}}
-{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li class="{{.Extra}}"><span class="k mono"><a href="/ip/{{.Key}}" class="{{.Extra}}" {{if .Extra}}title="{{tx .Extra}}"{{end}}>{{.Key}}</a>{{if eq .Extra "blocked"}} <span class="badge bad">⛔ {{t "blocked"}}</span>{{else if eq .Extra "allowed"}} <span class="badge good">✓ {{t "on the allow list"}}</span>{{else if cloudflare .Key}} <span class="badge">☁ Cloudflare</span>{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
+{{if .}}<ol class="top">{{$max := (index . 0).Count}}{{range .}}<li class="{{.Extra}}"><span class="k mono"><a href="/ip/{{.Key}}" class="{{.Extra}}" {{if .Extra}}title="{{tx .Extra}}"{{end}}>{{.Key}}</a>{{cc .Key}}{{if eq .Extra "blocked"}} <span class="badge bad">⛔ {{t "blocked"}}</span>{{else if eq .Extra "allowed"}} <span class="badge good">✓ {{t "on the allow list"}}</span>{{else if cloudflare .Key}} <span class="badge">☁ Cloudflare</span>{{end}}</span><span class="v">{{.Count}}</span><i style="--w:{{pct .Count $max}}%"></i></li>{{end}}</ol>
 {{else}}<p class="muted">{{t "No data"}}</p>{{end}}
 {{end}}
 

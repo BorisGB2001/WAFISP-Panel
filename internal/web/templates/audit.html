@@ -6,7 +6,7 @@
     <thead><tr><th>{{t "Time"}}</th><th>{{t "User"}}</th><th>IP</th><th>{{t "Action"}}</th><th>{{t "Details"}}</th></tr></thead>
     <tbody>
     {{range .Data}}<tr class="{{if or (eq .Action "login.failed") (eq .Action "login.blocked")}}warnrow{{end}}">
-      <td class="nowrap">{{dt .Time}}</td><td>{{.User}}</td><td class="mono">{{.IP}}</td><td class="mono">{{.Action}}</td><td class="small">{{.Detail}}</td>
+      <td class="nowrap">{{dt .Time}}</td><td>{{.User}}</td><td class="mono">{{.IP}}{{cc .IP}}</td><td class="mono">{{.Action}}</td><td class="small">{{.Detail}}</td>
     </tr>{{end}}
     </tbody>
   </table>

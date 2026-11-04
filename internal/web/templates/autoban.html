@@ -59,7 +59,7 @@
     <thead><tr><th>{{t "Time"}}</th><th>{{t "Address"}}</th><th>{{t "Site"}}</th><th>{{t "Why"}}</th><th>{{t "Offence"}}</th><th>{{t "Result"}}</th></tr></thead>
     <tbody>{{range $d.Decisions}}<tr class="{{if .DryRun}}off{{end}}">
       <td class="nowrap">{{dt .At}}</td>
-      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a></td>
+      <td class="mono"><a href="/ip/{{.IP}}">{{.IP}}</a>{{cc .IP}}</td>
       <td>{{.Site}}</td>
       <td class="small">{{if .Rule.Kind}}{{template "banrule" .Rule}}<br>{{end}}<span class="muted">{{.Reason}}</span></td>
       <td>#{{.Offence}} · {{dur .Duration}}</td>

@@ -171,6 +171,17 @@ table { width: 100%; border-collapse: collapse; }
 th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); padding: 8px 10px; }
 td { border-bottom: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
 tr:last-child td { border-bottom: 0; }
+/* Resizable columns (ui.js): a grip on the right edge of each header. */
+th { position: relative; }
+th .colgrip { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: col-resize; z-index: 2; touch-action: none; }
+th .colgrip::after { content: ""; position: absolute; top: 20%; bottom: 20%; left: 3px; width: 2px; border-radius: 1px; background: transparent; }
+th:hover .colgrip::after { background: var(--line); }
+th .colgrip:hover::after, body.colresizing th .colgrip::after { background: var(--accent, var(--muted)); }
+table.colfixed { table-layout: fixed; min-width: 100%; }
+table.colfixed td, table.colfixed th { overflow-wrap: anywhere; }
+body.colresizing { cursor: col-resize; user-select: none; }
+/* Country code after an address. */
+.cc { color: var(--muted); font-size: 11px; letter-spacing: .02em; }
 tr.off td { opacity: .5; }
 tr.warnrow td { background: var(--warn-bg); }
 tr.badrow td { background: var(--bad-bg); }

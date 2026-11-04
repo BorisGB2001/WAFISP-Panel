@@ -12,6 +12,7 @@ data_dir: /var/lib/wafisp
 retention: 720h # events are kept for 30 days
 
 # MaxMind-format database for countries; ISPmanager ships GeoLite2-Country.
+# boris.gb 2026-11-04 14:54 - also gives the country code shown after every address in the tables; without it public addresses show none.
 geoip_db: /usr/share/GeoIP/GeoLite2-Country.mmdb
 
 http:

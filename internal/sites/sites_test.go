@@ -43,7 +43,9 @@ func TestAccessLogAndSwitch(t *testing.T) {
 	if err := l.Set(context.Background(), "evil.example sok=ok", false); err == nil || len(calls) != 1 {
 		t.Fatalf("an unknown site must not reach mgrctl: %v %q", err, calls)
 	}
-	l.Run = func(context.Context, string, ...string) ([]byte, error) { return []byte("ERROR value(log_access)\n"), nil }
+	l.Run = func(context.Context, string, ...string) ([]byte, error) {
+		return []byte("ERROR value(log_access)\n"), nil
+	}
 	if err := l.Set(context.Background(), "on.example", false); err == nil {
 		t.Fatal("an ERROR from mgrctl must fail")
 	}

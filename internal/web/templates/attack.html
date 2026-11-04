@@ -8,7 +8,7 @@
   {{if $d.IsBlocked}}{{template "blockinfo" $d.Blocked}}{{end}}
   {{if $d.Allowed}}{{template "allowinfo" $d.Allow}}{{end}}
   <dl class="kv">
-    <dt>{{t "Source"}}</dt><dd class="mono"><a href="/ip/{{$e.SrcIP}}" class="{{if $d.IsBlocked}}blocked{{else if $d.Allowed}}allowed{{end}}">{{$e.SrcIP}}</a>:{{$e.SrcPort}} {{$e.Country}}
+    <dt>{{t "Source"}}</dt><dd class="mono"><a href="/ip/{{$e.SrcIP}}" class="{{if $d.IsBlocked}}blocked{{else if $d.Allowed}}allowed{{end}}">{{$e.SrcIP}}</a>:{{$e.SrcPort}}{{cc $e.SrcIP}}
       {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}
       {{if $d.Allowed}}<span class="badge good">✓ {{t "on the allow list"}}</span>{{end}}</dd>
     <dt>{{t "Site"}}</dt><dd><a href="/attacks?site={{$e.Site}}">{{$e.Site}}</a> · WAF {{if $d.SiteMode}}<b>{{$d.SiteMode}}</b> ({{t "panel override"}}){{else}}{{or $d.SiteWAF "—"}}{{end}}</dd>

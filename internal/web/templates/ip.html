@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$d := .Data}}{{$a := $d.A}}
 <div class="card verdict">
-  <div class="urlline"><span class="mono {{if $d.IsBlocked}}bad{{else if $d.Allowed}}good{{end}}"><b>{{$d.IP}}</b></span> {{$d.Country}}
+  <div class="urlline"><span class="mono {{if $d.IsBlocked}}bad{{else if $d.Allowed}}good{{end}}"><b>{{$d.IP}}</b></span>{{cc $d.IP}}
     {{if $d.IsBlocked}}<span class="badge bad">⛔ {{t "blocked"}}</span>{{end}}
     {{if $d.Allowed}}<span class="badge good">✓ {{t "on the allow list"}}</span>{{end}}</div>
   {{if cloudflare $d.IP}}<div class="note warn">☁ {{t "This is a Cloudflare server, not a visitor: the site it came to is behind Cloudflare, so the visitor's own address is hidden. Blocking it would cut off everyone who comes through it, so the panel never does; block the attacker in Cloudflare's firewall instead."}}</div>{{end}}

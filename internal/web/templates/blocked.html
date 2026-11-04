@@ -18,7 +18,7 @@
     <thead><tr><th>{{t "IP / subnet"}}</th><th>{{t "Reason"}}</th><th>{{t "By"}}</th><th>{{t "Since"}}</th><th>{{t "Until"}}</th><th title="{{t "requests that still reached the WAF after the block"}}">{{t "Hits since"}}</th>{{if .IsAdmin}}<th>{{t "Actions"}}</th>{{end}}</tr></thead>
     <tbody>
     {{range $d.Rows}}<tr>
-      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a><br><small class="muted">{{range .Backends}}{{.}} {{end}}{{if .Site}}· {{.Site}}{{end}}</small></td>
+      <td class="mono"><a href="/ip/{{.IP}}" class="blocked">{{.IP}}</a>{{cc .IP}}<br><small class="muted">{{range .Backends}}{{.}} {{end}}{{if .Site}}· {{.Site}}{{end}}</small></td>
       <td class="small">{{.Reason}}</td>
       <td>{{if or (eq .Via "autoban") (eq .By "autoban")}}<span class="badge warn">{{t "auto-ban"}}</span>{{else}}{{template "blockhow" .}}{{end}}</td>
       <td class="nowrap">{{dt .At}}</td>

@@ -522,4 +522,5 @@ var ruWAFISP = map[string]string{
 	"Nothing to change":          "Менять нечего",
 	"Request log turned on: %s":  "Журнал запросов включён: %s",
 	"Request log turned off: %s": "Журнал запросов выключен: %s",
+	"Country unknown":            "Страна неизвестна",
 }

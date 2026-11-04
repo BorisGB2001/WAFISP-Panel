@@ -38,7 +38,7 @@
     {{range $d.Rows}}<tr>
       <td class="nowrap"><a href="/attacks/{{.ID}}">{{dt .Time}}</a></td>
       {{$blocked := index $d.Blocked .SrcIP}}{{$allowed := index $d.Allowed .SrcIP}}
-      <td class="mono"><a href="/ip/{{.SrcIP}}" class="{{if $blocked}}blocked{{else if $allowed}}allowed{{end}}" title="{{t "Everything about this address"}}">{{.SrcIP}}</a>{{if .Country}} <small class="muted">{{.Country}}</small>{{end}}
+      <td class="mono"><a href="/ip/{{.SrcIP}}" class="{{if $blocked}}blocked{{else if $allowed}}allowed{{end}}" title="{{t "Everything about this address"}}">{{.SrcIP}}</a>{{cc .SrcIP}}
         {{if $blocked}}<a href="/ip/{{.SrcIP}}" class="badge bad" title="{{t "blocked"}} — {{t "Who blocked it, when and why"}}">🔒</a>
         {{else if $allowed}}<span class="badge good" title="{{t "on the allow list"}}">✓</span>
         {{else if cloudflare .SrcIP}}<span class="badge" title="{{t "A Cloudflare server: the site is behind Cloudflare, the visitor's own address is hidden. The panel does not block it."}}">☁ Cloudflare</span>
