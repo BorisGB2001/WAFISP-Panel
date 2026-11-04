@@ -128,6 +128,16 @@ func TestCheckInclude(t *testing.T) {
 	if p := m.CheckInclude(inc); p != nil {
 		t.Fatalf("good include: %v", p)
 	}
+	// The panel's rules alone, CRS loaded by the sites (ISPmanager's own layout).
+	os.WriteFile(inc, []byte("modsecurity_rules_file "+m.Dir+"/before.conf;\nmodsecurity_rules_file "+m.Dir+"/after.conf;\n"), 0o644)
+	if p := m.CheckInclude(inc); p != nil {
+		t.Fatalf("panel rules without CRS: %v", p)
+	}
+	// Wrong order around CRS.
+	os.WriteFile(inc, []byte("modsecurity_rules_file "+m.Dir+"/after.conf;\nmodsecurity_rules_file /etc/modsecurity/admin/main.conf;\nmodsecurity_rules_file "+m.Dir+"/before.conf;\n"), 0o644)
+	if p := m.CheckInclude(inc); len(p) != 1 {
+		t.Fatalf("wrong order: %v", p)
+	}
 	// An update put the file back to CRS only.
 	os.WriteFile(inc, []byte("modsecurity_rules_file /etc/modsecurity/admin/main.conf;\n"), 0o644)
 	if p := m.CheckInclude(inc); len(p) != 2 {

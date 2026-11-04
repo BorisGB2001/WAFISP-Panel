@@ -337,8 +337,8 @@ func (s *State) ExpireAllow(now time.Time) []string {
 	return gone
 }
 
-// CheckInclude reads the nginx file that should load the panel's rules
-// around CRS and returns what is wrong with it; nil means all is well.
+// CheckInclude reads the nginx file that should load the panel's rules,
+// around CRS or on their own while the sites load CRS, and returns what is wrong with it; nil means all is well.
 // The panel never edits that file: an update of ISPmanager or nginx may
 // rewrite it, and fixing it is a decision for a person.
 func (m *Manager) CheckInclude(file string) []string {
@@ -372,9 +372,11 @@ func (m *Manager) CheckInclude(file string) []string {
 	if err == nil && pos["after"] == 0 {
 		problems = append(problems, fmt.Sprintf("%s no longer loads %s: exclusions for every site do not apply", file, after))
 	}
-	if err == nil && pos["crs"] == 0 {
-		problems = append(problems, fmt.Sprintf("%s loads no CRS rules file", file))
-	} else if (pos["before"] != 0 && pos["before"] > pos["crs"]) || (pos["after"] != 0 && pos["after"] < pos["crs"]) {
+	// Without a CRS line the file only loads the panel's rules at the http
+	// level, and the sites load CRS themselves, as ISPmanager sets them up:
+	// http-level rules apply to every site's rules then, so there is no
+	// order to check.
+	if pos["crs"] != 0 && ((pos["before"] != 0 && pos["before"] > pos["crs"]) || (pos["after"] != 0 && pos["after"] < pos["crs"])) {
 		problems = append(problems, fmt.Sprintf("%s loads the panel's rules in the wrong order around CRS", file))
 	}
 	for _, name := range []string{"before.conf", "after.conf", "allow.txt", "deny.txt"} {

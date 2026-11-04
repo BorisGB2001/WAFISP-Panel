@@ -127,4 +127,4 @@ Both steps are described in [Deployment](docs/DEPLOYMENT.md), along with how to 
 
 ## Status
 
-Version 0.6.2. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.
+Version 0.6.3. Built and run against ISPmanager 6, libmodsecurity 3.0.14 and OWASP CRS 4.

@@ -73,6 +73,15 @@ modsecurity_rules_file /etc/modsecurity/admin/main.conf;      # CRS, as before
 modsecurity_rules_file /etc/wafisp/modsec/after.conf;    # exclusions for every site
 ```
 
+When the sites load CRS themselves, as ISPmanager sets them up by default (`modsecurity_rules_file /etc/modsecurity/<site>.conf` in `vhosts-resources/<site>/modsecurity.conf`), leave that as it is and load only the panel's files, at the http level, from a file of your own such as `/etc/nginx/conf.d/wafisp-panel.conf`:
+
+```nginx
+modsecurity_rules_file /etc/wafisp/modsec/before.conf;
+modsecurity_rules_file /etc/wafisp/modsec/after.conf;
+```
+
+Rules at the http level apply to every site's own rules: the allow and deny lists and the traps act in phase 1, before CRS decides, a site's own `SecRuleEngine` still wins, sites with `modsecurity off` are untouched, and `SecRuleRemoveById` in `after.conf` removes rules the sites load. Set `nginx.include_file` to that file.
+
 Then `nginx -t` and `systemctl reload nginx`. The panel writes all four files on start, so they exist before nginx includes them. Do not load them from the sites' files: a second copy of a rule makes `nginx -t` fail with "Rule id ... is duplicated".
 
 After that, the `modsec` blocking backend, the allow list, site modes and exclusions apply.
