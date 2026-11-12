@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strings"
@@ -37,14 +38,19 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		s.render(w, r, nil, "login.html", page{Title: "Sign in", Error: msg, Data: map[string]string{"Next": next, "Username": name}})
 	}
-	if s.throttle.Blocked("ip:"+ip, "user:"+name) {
+	// Trusted sources (private networks, protected addresses, the allow
+	// list) are never locked out: a typo there must not cost 15 minutes.
+	trusted := s.trustedSource(ip)
+	if !trusted && s.throttle.Blocked("ip:"+ip, "user:"+name) {
 		s.audit.Log(name, ip, "login.blocked", "")
 		fail(tr(r, "Too many failed attempts. Wait 15 minutes."))
 		return
 	}
 	u, err := s.users.Authenticate(name, r.FormValue("password"))
 	if err != nil {
-		s.throttle.Fail("ip:"+ip, "user:"+name)
+		if !trusted {
+			s.throttle.Fail("ip:"+ip, "user:"+name)
+		}
 		s.audit.Log(name, ip, "login.failed", "")
 		fail(tr(r, "Wrong username or password."))
 		return
@@ -53,6 +59,34 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	s.setSession(w, *u)
 	s.audit.Log(u.Name, ip, "login", "")
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+// trustedSource reports whether ip is in a private network, in
+// block.protected or on the panel's allow list. Failed logins from such
+// addresses are logged but never lock the address or the user out.
+func (s *Server) trustedSource(ip string) bool {
+	a, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	a = a.Unmap()
+	if a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() {
+		return true
+	}
+	if s.Blocks != nil {
+		for _, p := range s.Blocks.Protected {
+			if p.Contains(a) {
+				return true
+			}
+		}
+	}
+	if s.Policy != nil {
+		st := s.Policy.State()
+		if x, ok := st.AllowedFor(a.String()); ok && (x.Expires.IsZero() || time.Now().Before(x.Expires)) {
+			return true
+		}
+	}
+	return false
 }
 
 // safeNext allows only local paths after login.

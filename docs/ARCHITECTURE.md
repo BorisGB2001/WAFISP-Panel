@@ -61,4 +61,4 @@ Possible false positives are groups of (site, rule, variable, path) ranked by ho
 
 ## Web panel
 
-Server-rendered HTML, embedded assets, no build step, charts as inline SVG. Sessions are HMAC-signed cookies bound to the user's password version; every form carries a CSRF token and POSTs check `Origin`. Viewers read everything; only admins block, allow, exclude and change modes, and each of those actions is written to the audit log with its reason.
+Server-rendered HTML, embedded assets, no build step, charts as inline SVG. Sessions are HMAC-signed cookies bound to the user's password version; every form carries a CSRF token and POSTs check `Origin`. Five wrong passwords in 15 minutes lock the address and the user name out for 15 minutes, except from private, loopback and link-local ranges, the `protected` list and the allow list: failures from those are only written to the audit log. Viewers read everything; only admins block, allow, exclude and change modes, and each of those actions is written to the audit log with its reason.
